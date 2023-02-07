@@ -13,6 +13,7 @@ pub struct SnapshotDbManagerSqlite {
     /// rpc initiated opens should simply abort when the limit is reached.
     open_snapshot_semaphore: Arc<Semaphore>,
     open_create_delete_lock: Mutex<()>,
+    open_snapshot_mpt: Option<Arc<SnapshotDbSqlite>>,
 }
 
 #[derive(Debug)]
@@ -46,6 +47,7 @@ impl SnapshotDbManagerSqlite {
                 max_open_snapshots as usize,
             )),
             open_create_delete_lock: Default::default(),
+            open_snapshot_mpt: None,
         })
     }
 

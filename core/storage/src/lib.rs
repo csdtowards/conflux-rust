@@ -42,6 +42,8 @@ pub mod storage_dir {
                 .iter()
                 .collect::<PathBuf>();
         pub static ref STORAGE_DIR: PathBuf = "storage_db".into();
+        pub static ref SNAPSHOT_MPT_DIR: PathBuf =
+            ["storage_db", "snapshot_mpt"].iter().collect::<PathBuf>();
     }
 }
 
