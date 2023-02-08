@@ -165,7 +165,10 @@ pub trait SnapshotDbTrait:
 use crate::{
     impls::{
         errors::Result as StorageResult,
-        storage_db::snapshot_db_manager_sqlite::AlreadyOpenSnapshots,
+        storage_db::{
+            snapshot_db_manager_sqlite::AlreadyOpenSnapshots,
+            snapshot_mpt_db_sqlite::SnapshotMptDbSqlite,
+        },
     },
     storage_db::{
         KeyValueDbIterableTrait, KeyValueDbTraitOwnedRead, KeyValueDbTraitRead,
@@ -176,10 +179,9 @@ use crate::{
 };
 use derivative::Derivative;
 use malloc_size_of_derive::MallocSizeOf as DeriveMallocSizeOf;
+use parking_lot::RwLock;
 use primitives::{EpochId, MerkleHash, MERKLE_NULL_NODE, NULL_EPOCH};
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use std::{path::Path, sync::Arc};
 use tokio::sync::Semaphore;
-use parking_lot::RwLock;
-use crate::impls::storage_db::snapshot_mpt_db_sqlite::SnapshotMptDbSqlite;

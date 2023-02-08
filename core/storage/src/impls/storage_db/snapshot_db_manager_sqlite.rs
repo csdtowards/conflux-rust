@@ -42,7 +42,7 @@ impl SnapshotDbManagerSqlite {
         let p = snapshot_path.join("mpt");
         let r = SnapshotMptDbSqlite::create(p.as_path()).unwrap();
         let x = Arc::new(RwLock::new(r));
-        let a = Some(x.clone());        
+        let a = Some(x.clone());
 
         Ok(Self {
             snapshot_path,
