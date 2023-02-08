@@ -13,7 +13,7 @@ pub struct SnapshotDbManagerSqlite {
     /// rpc initiated opens should simply abort when the limit is reached.
     open_snapshot_semaphore: Arc<Semaphore>,
     open_create_delete_lock: Mutex<()>,
-    open_snapshot_mpt: Option<Arc<SnapshotDbSqlite>>,
+    open_snapshot_mpt: Option<Arc<RwLock<SnapshotMptDbSqlite>>>,
 }
 
 #[derive(Debug)]
@@ -39,6 +39,11 @@ impl SnapshotDbManagerSqlite {
             fs::create_dir_all(snapshot_path.clone())?;
         }
 
+        let p = snapshot_path.join("mpt");
+        let r = SnapshotMptDbSqlite::create(p.as_path()).unwrap();
+        let x = Arc::new(RwLock::new(r));
+        let a = Some(x.clone());        
+
         Ok(Self {
             snapshot_path,
             force_cow: false,
@@ -47,7 +52,7 @@ impl SnapshotDbManagerSqlite {
                 max_open_snapshots as usize,
             )),
             open_create_delete_lock: Default::default(),
-            open_snapshot_mpt: None,
+            open_snapshot_mpt: a,
         })
     }
 
@@ -121,11 +126,14 @@ impl SnapshotDbManagerSqlite {
                 }
             }
 
+            let v = self.open_snapshot_mpt.as_ref().unwrap();
+
             let snapshot_db = Arc::new(SnapshotDbSqlite::open(
                 snapshot_path.as_path(),
                 /* readonly = */ true,
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
+                v,
             )?);
 
             semaphore_permit.forget();
@@ -168,11 +176,14 @@ impl SnapshotDbManagerSqlite {
             bail!(ErrorKind::SnapshotAlreadyExists)
         }
 
+        let v = self.open_snapshot_mpt.as_ref().unwrap();
+
         let snapshot_db = if create {
             SnapshotDbSqlite::create(
                 snapshot_path.as_path(),
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
+                v,
             )
         } else {
             let file_exists = snapshot_path.exists();
@@ -182,6 +193,7 @@ impl SnapshotDbManagerSqlite {
                     /* readonly = */ false,
                     &self.already_open_snapshots,
                     &self.open_snapshot_semaphore,
+                    &v,
                 )
             } else {
                 bail!(ErrorKind::SnapshotNotFound);
@@ -447,12 +459,15 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
 
         let mut snapshot_db;
         let mut cow = false;
+        let v = self.open_snapshot_mpt.as_ref().unwrap();
+
         let new_snapshot_root = if *old_snapshot_epoch_id == NULL_EPOCH {
             // direct merge the first snapshot
             snapshot_db = Self::SnapshotDb::create(
                 temp_db_path.as_path(),
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
+                v,
             )?;
             snapshot_db.dump_delta_mpt(&delta_mpt)?;
             snapshot_db.direct_merge()?
@@ -614,3 +629,5 @@ use std::{
     time::Duration,
 };
 use tokio::sync::Semaphore;
+
+use super::snapshot_mpt_db_sqlite::SnapshotMptDbSqlite;

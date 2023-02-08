@@ -125,6 +125,7 @@ pub trait SnapshotDbTrait:
         snapshot_path: &Path, readonly: bool,
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_semaphore: &Arc<Semaphore>,
+        open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
     ) -> StorageResult<Self>;
 
     /// Store already_open_snapshots and open_semaphore to update
@@ -134,6 +135,7 @@ pub trait SnapshotDbTrait:
         snapshot_path: &Path,
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_semaphore: &Arc<Semaphore>,
+        open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
     ) -> StorageResult<Self>;
 
     fn direct_merge(&mut self) -> StorageResult<MerkleHash>;
@@ -179,3 +181,5 @@ use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use std::{path::Path, sync::Arc};
 use tokio::sync::Semaphore;
+use parking_lot::RwLock;
+use crate::impls::storage_db::snapshot_mpt_db_sqlite::SnapshotMptDbSqlite;

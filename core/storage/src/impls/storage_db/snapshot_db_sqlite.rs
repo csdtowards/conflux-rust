@@ -11,12 +11,12 @@ pub struct SnapshotDbSqlite {
     open_semaphore: Arc<Semaphore>,
     path: PathBuf,
     remove_on_close: AtomicBool,
-    open_snapshot_mpt: Option<Arc<SnapshotDbSqlite>>,
+    open_snapshot_mpt: Option<Arc<RwLock<SnapshotMptDbSqlite>>>,
 }
 
 pub struct SnapshotDbStatements {
     kvdb_statements: Arc<KvdbSqliteStatements>,
-    mpt_statements: Arc<KvdbSqliteStatements>,
+    // mpt_statements: Arc<KvdbSqliteStatements>,
     delta_mpt_set_keys_statements: Arc<KvdbSqliteStatements>,
     delta_mpt_delete_keys_statements: Arc<KvdbSqliteStatements>,
 }
@@ -32,15 +32,15 @@ lazy_static! {
             )
             .unwrap(),
         );
-        let mpt_statements = Arc::new(
-            KvdbSqliteStatements::make_statements(
-                &["node_rlp"],
-                &["BLOB"],
-                SnapshotDbSqlite::SNAPSHOT_MPT_TABLE_NAME,
-                false,
-            )
-            .unwrap(),
-        );
+        // let mpt_statements = Arc::new(
+        //     KvdbSqliteStatements::make_statements(
+        //         &["node_rlp"],
+        //         &["BLOB"],
+        //         SnapshotDbSqlite::SNAPSHOT_MPT_TABLE_NAME,
+        //         false,
+        //     )
+        //     .unwrap(),
+        // );
 
         let delta_mpt_set_keys_statements = Arc::new(
             KvdbSqliteStatements::make_statements(
@@ -63,7 +63,7 @@ lazy_static! {
 
         SnapshotDbStatements {
             kvdb_statements,
-            mpt_statements,
+            // mpt_statements,
             delta_mpt_set_keys_statements,
             delta_mpt_delete_keys_statements,
         }
@@ -198,38 +198,42 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
     fn open_snapshot_mpt_owned(
         &'db mut self,
     ) -> Result<Self::SnapshotDbBorrowMutType> {
-        Ok(SnapshotMpt::new(unsafe {
-            std::mem::transmute(
-                KvdbSqliteShardedBorrowMut::<SnapshotMptDbValue>::new(
-                    self.maybe_db_connections.as_mut().map(|b| &mut **b),
-                    &SNAPSHOT_DB_STATEMENTS.mpt_statements,
-                ),
-            )
-        })?)
+        self.open_snapshot_mpt.as_ref().unwrap().write().open_snapshot_mpt_owned()
+
+        // Ok(SnapshotMpt::new(unsafe {
+        //     std::mem::transmute(
+        //         KvdbSqliteShardedBorrowMut::<SnapshotMptDbValue>::new(
+        //             self.maybe_db_connections.as_mut().map(|b| &mut **b),
+        //             &SNAPSHOT_DB_STATEMENTS.mpt_statements,
+        //         ),
+        //     )
+        // })?)
     }
 
     fn open_snapshot_mpt_as_owned(
         &'db self,
     ) -> Result<Self::SnapshotDbAsOwnedType> {
-        Ok(SnapshotMpt::new(
-            KvdbSqliteSharded::<SnapshotMptDbValue>::new(
-                self.try_clone_connections()?,
-                SNAPSHOT_DB_STATEMENTS.mpt_statements.clone(),
-            ),
-        )?)
+        self.open_snapshot_mpt.as_ref().unwrap().read().open_snapshot_mpt_as_owned()
+        // Ok(SnapshotMpt::new(
+        //     KvdbSqliteSharded::<SnapshotMptDbValue>::new(
+        //         self.try_clone_connections()?,
+        //         SNAPSHOT_DB_STATEMENTS.mpt_statements.clone(),
+        //     ),
+        // )?)
     }
 
     fn open_snapshot_mpt_shared(
         &'db self,
     ) -> Result<Self::SnapshotDbBorrowSharedType> {
-        Ok(SnapshotMpt::new(unsafe {
-            std::mem::transmute(KvdbSqliteShardedBorrowShared::<
-                SnapshotMptDbValue,
-            >::new(
-                self.maybe_db_connections.as_ref().map(|b| &**b),
-                &SNAPSHOT_DB_STATEMENTS.mpt_statements,
-            ))
-        })?)
+        self.open_snapshot_mpt.as_ref().unwrap().read().open_snapshot_mpt_shared()
+        // Ok(SnapshotMpt::new(unsafe {
+        //     std::mem::transmute(KvdbSqliteShardedBorrowShared::<
+        //         SnapshotMptDbValue,
+        //     >::new(
+        //         self.maybe_db_connections.as_ref().map(|b| &**b),
+        //         &SNAPSHOT_DB_STATEMENTS.mpt_statements,
+        //     ))
+        // })?)
     }
 }
 
@@ -253,6 +257,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         snapshot_path: &Path, readonly: bool,
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_semaphore: &Arc<Semaphore>,
+        open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
     ) -> Result<SnapshotDbSqlite>
     {
         let kvdb_sqlite_sharded = KvdbSqliteSharded::<Box<[u8]>>::open(
@@ -268,7 +273,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
             open_semaphore: open_semaphore.clone(),
             path: snapshot_path.to_path_buf(),
             remove_on_close: Default::default(),
-            open_snapshot_mpt: None,
+            open_snapshot_mpt: Some(open_snapshot_mpt.clone()),
         })
     }
 
@@ -276,6 +281,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         snapshot_path: &Path,
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_snapshots_semaphore: &Arc<Semaphore>,
+        open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
     ) -> Result<SnapshotDbSqlite>
     {
         fs::create_dir_all(snapshot_path)?;
@@ -292,10 +298,10 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 // Safe to unwrap since the connections are newly created.
                 kvdb_sqlite_sharded.into_connections().unwrap();
             // Create Snapshot MPT table.
-            KvdbSqliteSharded::<Self::ValueType>::create_table(
-                &mut connections,
-                &SNAPSHOT_DB_STATEMENTS.mpt_statements,
-            )?;
+            // KvdbSqliteSharded::<Self::ValueType>::create_table(
+            //     &mut connections,
+            //     &SNAPSHOT_DB_STATEMENTS.mpt_statements,
+            // )?;
             Ok(connections)
         })();
         match create_result {
@@ -309,7 +315,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 open_semaphore: open_snapshots_semaphore.clone(),
                 path: snapshot_path.to_path_buf(),
                 remove_on_close: Default::default(),
-                open_snapshot_mpt: None,
+                open_snapshot_mpt: Some(open_snapshot_mpt.clone()),
             }),
         }
     }
@@ -636,6 +642,7 @@ use crate::{
     KVInserter, SnapshotDbManagerSqlite, SqliteConnection,
 };
 use fallible_iterator::FallibleIterator;
+use parking_lot::Mutex;
 use primitives::{MerkleHash, StorageKeyWithSpace};
 use std::{
     fs,
@@ -643,6 +650,9 @@ use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    },
+    }, borrow::BorrowMut,
 };
 use tokio::sync::Semaphore;
+
+use super::snapshot_mpt_db_sqlite::SnapshotMptDbSqlite;
+use parking_lot::RwLock;
