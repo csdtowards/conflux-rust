@@ -198,7 +198,11 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
     fn open_snapshot_mpt_owned(
         &'db mut self,
     ) -> Result<Self::SnapshotDbBorrowMutType> {
-        self.open_snapshot_mpt.as_ref().unwrap().write().open_snapshot_mpt_owned()
+        self.open_snapshot_mpt
+            .as_ref()
+            .unwrap()
+            .write()
+            .open_snapshot_mpt_owned()
 
         // Ok(SnapshotMpt::new(unsafe {
         //     std::mem::transmute(
@@ -213,7 +217,11 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
     fn open_snapshot_mpt_as_owned(
         &'db self,
     ) -> Result<Self::SnapshotDbAsOwnedType> {
-        self.open_snapshot_mpt.as_ref().unwrap().read().open_snapshot_mpt_as_owned()
+        self.open_snapshot_mpt
+            .as_ref()
+            .unwrap()
+            .read()
+            .open_snapshot_mpt_as_owned()
         // Ok(SnapshotMpt::new(
         //     KvdbSqliteSharded::<SnapshotMptDbValue>::new(
         //         self.try_clone_connections()?,
@@ -225,7 +233,11 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
     fn open_snapshot_mpt_shared(
         &'db self,
     ) -> Result<Self::SnapshotDbBorrowSharedType> {
-        self.open_snapshot_mpt.as_ref().unwrap().read().open_snapshot_mpt_shared()
+        self.open_snapshot_mpt
+            .as_ref()
+            .unwrap()
+            .read()
+            .open_snapshot_mpt_shared()
         // Ok(SnapshotMpt::new(unsafe {
         //     std::mem::transmute(KvdbSqliteShardedBorrowShared::<
         //         SnapshotMptDbValue,
@@ -645,12 +657,13 @@ use fallible_iterator::FallibleIterator;
 use parking_lot::Mutex;
 use primitives::{MerkleHash, StorageKeyWithSpace};
 use std::{
+    borrow::BorrowMut,
     fs,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    }, borrow::BorrowMut,
+    },
 };
 use tokio::sync::Semaphore;
 

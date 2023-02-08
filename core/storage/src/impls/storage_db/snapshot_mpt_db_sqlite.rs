@@ -27,11 +27,7 @@ lazy_static! {
             .unwrap(),
         );
 
-        SnapshotMptDbStatements {
-
-            mpt_statements,
-
-        }
+        SnapshotMptDbStatements { mpt_statements }
     };
 }
 
@@ -167,9 +163,10 @@ impl SnapshotMptDbSqlite {
     }
 
     pub fn open(
-        snapshot_path: &Path, readonly: bool,
-        // already_open_snapshots: &AlreadyOpenSnapshots<Self>,
-        // open_semaphore: &Arc<Semaphore>,
+        snapshot_path: &Path,
+        readonly: bool,
+        /* already_open_snapshots: &AlreadyOpenSnapshots<Self>,
+         * open_semaphore: &Arc<Semaphore>, */
     ) -> Result<SnapshotMptDbSqlite>
     {
         let kvdb_sqlite_sharded = KvdbSqliteSharded::<Box<[u8]>>::open(
@@ -182,7 +179,7 @@ impl SnapshotMptDbSqlite {
         Ok(Self {
             maybe_db_connections: kvdb_sqlite_sharded.into_connections(),
             already_open_snapshots: Default::default(),
-            open_semaphore:  Arc::new(Semaphore::new(0)),
+            open_semaphore: Arc::new(Semaphore::new(0)),
             path: snapshot_path.to_path_buf(),
             remove_on_close: Default::default(),
         })
@@ -190,8 +187,8 @@ impl SnapshotMptDbSqlite {
 
     pub fn create(
         snapshot_path: &Path,
-        // already_open_snapshots: &AlreadyOpenSnapshots<Self>,
-        // open_snapshots_semaphore: &Arc<Semaphore>,
+        /* already_open_snapshots: &AlreadyOpenSnapshots<Self>,
+         * open_snapshots_semaphore: &Arc<Semaphore>, */
     ) -> Result<SnapshotMptDbSqlite>
     {
         fs::create_dir_all(snapshot_path)?;
@@ -222,7 +219,7 @@ impl SnapshotMptDbSqlite {
             Ok(connections) => Ok(SnapshotMptDbSqlite {
                 maybe_db_connections: Some(connections),
                 already_open_snapshots: Default::default(),
-                open_semaphore:  Arc::new(Semaphore::new(0)),
+                open_semaphore: Arc::new(Semaphore::new(0)),
                 path: snapshot_path.to_path_buf(),
                 remove_on_close: Default::default(),
             }),
