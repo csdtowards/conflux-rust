@@ -217,6 +217,20 @@ impl<ValueType> KvdbSqliteSharded<ValueType> {
         Ok(())
     }
 
+    pub fn check_table(
+        connections: &mut Box<[SqliteConnection]>,
+        statements: &KvdbSqliteStatements,
+    ) -> Result<bool>
+    {
+        for connection in connections.iter_mut() {
+            if KvdbSqlite::<ValueType>::check_table(connection, statements)? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     pub fn drop_table(
         connections: &mut Box<[SqliteConnection]>,
         statements: &KvdbSqliteStatements,

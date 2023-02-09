@@ -31,6 +31,7 @@ pub type AlreadyOpenSnapshots<T> =
 
 impl SnapshotDbManagerSqlite {
     const SNAPSHOT_DB_SQLITE_DIR_PREFIX: &'static str = "sqlite_";
+    const TARGET_EPOCH: u64 = 100;
 
     pub fn new(
         snapshot_path: PathBuf, max_open_snapshots: u16,
@@ -149,7 +150,7 @@ impl SnapshotDbManagerSqlite {
     }
 
     fn open_snapshot_write(
-        &self, snapshot_path: PathBuf, create: bool,
+        &self, snapshot_path: PathBuf, create: bool, epoch_height: u64,
     ) -> Result<SnapshotDbSqlite> {
         if self
             .already_open_snapshots
@@ -184,6 +185,7 @@ impl SnapshotDbManagerSqlite {
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
                 v,
+                epoch_height < SnapshotDbManagerSqlite::TARGET_EPOCH,
             )
         } else {
             let file_exists = snapshot_path.exists();
@@ -365,7 +367,7 @@ impl SnapshotDbManagerSqlite {
 
     fn copy_and_merge(
         &self, temp_snapshot_db: &mut SnapshotDbSqlite,
-        old_snapshot_epoch_id: &EpochId,
+        old_snapshot_epoch_id: &EpochId, old_epoch_height: u64,
     ) -> Result<MerkleHash>
     {
         let snapshot_path = self.get_snapshot_db_path(old_snapshot_epoch_id);
@@ -445,6 +447,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
         delta_mpt: DeltaMptIterator,
         mut in_progress_snapshot_info: SnapshotInfo,
         snapshot_info_map_rwlock: &'m RwLock<PersistedSnapshotInfoMap>,
+        old_epoch_height: u64, new_epoch_height: u64,
     ) -> Result<(RwLockWriteGuard<'m, PersistedSnapshotInfoMap>, SnapshotInfo)>
     {
         debug!(
@@ -468,6 +471,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
                 v,
+                new_epoch_height < SnapshotDbManagerSqlite::TARGET_EPOCH,
             )?;
             snapshot_db.dump_delta_mpt(&delta_mpt)?;
             snapshot_db.direct_merge()?
@@ -485,6 +489,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                 snapshot_db = self.open_snapshot_write(
                     temp_db_path.clone(),
                     /* create = */ false,
+                    new_epoch_height,
                 )?;
 
                 // Drop copied old snapshot delta mpt dump
@@ -497,9 +502,14 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                 snapshot_db = self.open_snapshot_write(
                     temp_db_path.clone(),
                     /* create = */ true,
+                    new_epoch_height,
                 )?;
                 snapshot_db.dump_delta_mpt(&delta_mpt)?;
-                self.copy_and_merge(&mut snapshot_db, old_snapshot_epoch_id)?
+                self.copy_and_merge(
+                    &mut snapshot_db,
+                    old_snapshot_epoch_id,
+                    old_epoch_height,
+                )?
             }
         };
         in_progress_snapshot_info.merkle_root = new_snapshot_root.clone();
@@ -578,7 +588,9 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
 
     fn new_temp_snapshot_for_full_sync(
         &self, snapshot_epoch_id: &EpochId, merkle_root: &MerkleHash,
-    ) -> Result<Self::SnapshotDb> {
+        epoch_height: u64,
+    ) -> Result<Self::SnapshotDb>
+    {
         let temp_db_path = self.get_full_sync_temp_snapshot_db_path(
             snapshot_epoch_id,
             merkle_root,
@@ -586,6 +598,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
         self.open_snapshot_write(
             temp_db_path.to_path_buf(),
             /* create = */ true,
+            epoch_height,
         )
     }
 
