@@ -239,7 +239,8 @@ impl<ValueType> KvdbSqliteSharded<ValueType> {
     ) -> Result<()>
     {
         for connection in connections.iter_mut() {
-            KvdbSqlite::<ValueType>::drop_table(connection, statements)?
+            KvdbSqlite::<ValueType>::drop_table(connection, statements)?;
+            KvdbSqlite::<ValueType>::vacuum_db(connection, statements)?
         }
         Ok(())
     }

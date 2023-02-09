@@ -49,6 +49,7 @@ pub struct KvdbSqliteStatementsPerTable {
     pub range_select_till_end_statement: String,
     pub range_excl_select_statement: String,
     pub select_tbl_name: String,
+    pub vacuum: String,
 }
 
 impl KvdbSqliteStatements {
@@ -77,6 +78,7 @@ impl KvdbSqliteStatements {
         "SELECT key {comma_value_columns} FROM {table_name} \
          WHERE key >= :lower_bound_incl ORDER BY key ASC";
     pub const SELECT_TBL_NAME: &'static str =  "SELECT tbl_name FROM sqlite_master WHERE tbl_name = \"{table_name}\" AND type = \"table\"";
+    pub const VACUUM: &'static str = "vacuum";
 
     pub fn make_statements(
         value_column_names: &[&str], value_column_types: &[&str],
@@ -188,6 +190,7 @@ impl KvdbSqliteStatementsPerTable {
                 KvdbSqliteStatements::SELECT_TBL_NAME,
                 &strfmt_vars,
             )?,
+            vacuum: strfmt(KvdbSqliteStatements::VACUUM, &strfmt_vars)?,
         })
     }
 }
@@ -372,6 +375,27 @@ impl<ValueType> KvdbSqlite<ValueType> {
         // Main table.
         connection
             .execute(&statements.stmts_main_table.drop_table, SQLITE_NO_PARAM)?
+            .finish_ignore_rows()
+    }
+
+    pub fn vacuum_db(
+        connection: &mut SqliteConnection, statements: &KvdbSqliteStatements,
+    ) -> Result<()> {
+        // Maybe extra bytes table.
+        if statements.stmts_main_table.create_table
+            != statements.stmts_bytes_key_table.create_table
+        {
+            connection
+                .execute(
+                    &statements.stmts_bytes_key_table.vacuum,
+                    SQLITE_NO_PARAM,
+                )?
+                .finish_ignore_rows()?;
+        }
+
+        // Main table.
+        connection
+            .execute(&statements.stmts_main_table.vacuum, SQLITE_NO_PARAM)?
             .finish_ignore_rows()
     }
 }
