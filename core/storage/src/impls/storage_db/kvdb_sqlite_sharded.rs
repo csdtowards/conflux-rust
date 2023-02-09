@@ -217,13 +217,15 @@ impl<ValueType> KvdbSqliteSharded<ValueType> {
         Ok(())
     }
 
-    pub fn check_table(
+    pub fn check_if_table_exist(
         connections: &mut Box<[SqliteConnection]>,
         statements: &KvdbSqliteStatements,
     ) -> Result<bool>
     {
         for connection in connections.iter_mut() {
-            if KvdbSqlite::<ValueType>::check_table(connection, statements)? {
+            if KvdbSqlite::<ValueType>::check_if_table_exist(
+                connection, statements,
+            )? {
                 return Ok(true);
             }
         }

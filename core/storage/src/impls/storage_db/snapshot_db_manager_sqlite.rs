@@ -40,10 +40,17 @@ impl SnapshotDbManagerSqlite {
             fs::create_dir_all(snapshot_path.clone())?;
         }
 
-        let p = snapshot_path.join("mpt");
-        let r = SnapshotMptDbSqlite::create(p.as_path()).unwrap();
-        let x = Arc::new(RwLock::new(r));
-        let a = Some(x.clone());
+        let mpt_db_path = snapshot_path.join("mpt");
+        let open_snapshot_mpt = if mpt_db_path.exists() {
+            let snapshot_mapt_db =
+                SnapshotMptDbSqlite::open(mpt_db_path.as_path(), false)
+                    .unwrap();
+            Some(Arc::new(RwLock::new(snapshot_mapt_db)))
+        } else {
+            let snapshot_mapt_db =
+                SnapshotMptDbSqlite::create(mpt_db_path.as_path()).unwrap();
+            Some(Arc::new(RwLock::new(snapshot_mapt_db)))
+        };
 
         Ok(Self {
             snapshot_path,
@@ -53,7 +60,7 @@ impl SnapshotDbManagerSqlite {
                 max_open_snapshots as usize,
             )),
             open_create_delete_lock: Default::default(),
-            open_snapshot_mpt: a,
+            open_snapshot_mpt,
         })
     }
 

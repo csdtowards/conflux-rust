@@ -290,7 +290,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         )?;
 
         let mut conn = kvdb_sqlite_sharded.into_connections().unwrap();
-        let x = KvdbSqliteSharded::<Self::ValueType>::check_table(
+        let x = KvdbSqliteSharded::<Self::ValueType>::check_if_table_exist(
             &mut conn,
             &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
         )?;
