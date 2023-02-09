@@ -290,10 +290,11 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         )?;
 
         let mut conn = kvdb_sqlite_sharded.into_connections().unwrap();
-        let x = KvdbSqliteSharded::<Self::ValueType>::check_if_table_exist(
-            &mut conn,
-            &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
-        )?;
+        let mpt_table_exist =
+            KvdbSqliteSharded::<Self::ValueType>::check_if_table_exist(
+                &mut conn,
+                &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
+            )?;
 
         Ok(Self {
             maybe_db_connections: Some(conn),
@@ -302,7 +303,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
             path: snapshot_path.to_path_buf(),
             remove_on_close: Default::default(),
             open_snapshot_mpt: Some(open_snapshot_mpt.clone()),
-            old_version: x,
+            old_version: mpt_table_exist,
         })
     }
 
@@ -539,6 +540,15 @@ impl SnapshotDbSqlite {
         <DeltaMptDumperDeleteDb as SingleWriterImplFamily>::FamilyRepresentative::drop_table(
             connections,
             &SNAPSHOT_DB_STATEMENTS.delta_mpt_delete_keys_statements,
+        )
+    }
+
+    pub fn drop_mpt_table(&mut self) -> Result<()> {
+        // Safe to unwrap since we are not on a NULL snapshot.
+        let connections = self.maybe_db_connections.as_mut().unwrap();
+        KvdbSqliteSharded::<()>::drop_table(
+            connections,
+            &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
         )
     }
 

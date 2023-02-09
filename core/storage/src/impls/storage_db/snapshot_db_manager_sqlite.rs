@@ -134,14 +134,14 @@ impl SnapshotDbManagerSqlite {
                 }
             }
 
-            let v = self.open_snapshot_mpt.as_ref().unwrap();
+            let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
 
             let snapshot_db = Arc::new(SnapshotDbSqlite::open(
                 snapshot_path.as_path(),
                 /* readonly = */ true,
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
-                v,
+                open_snapshot_mpt,
             )?);
 
             semaphore_permit.forget();
@@ -184,14 +184,13 @@ impl SnapshotDbManagerSqlite {
             bail!(ErrorKind::SnapshotAlreadyExists)
         }
 
-        let v = self.open_snapshot_mpt.as_ref().unwrap();
-
-        let snapshot_db = if create {
+        let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
+        let mut snapshot_db = if create {
             SnapshotDbSqlite::create(
                 snapshot_path.as_path(),
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
-                v,
+                open_snapshot_mpt,
                 epoch_height < SnapshotDbManagerSqlite::TARGET_EPOCH,
             )
         } else {
@@ -202,7 +201,7 @@ impl SnapshotDbManagerSqlite {
                     /* readonly = */ false,
                     &self.already_open_snapshots,
                     &self.open_snapshot_semaphore,
-                    &v,
+                    &open_snapshot_mpt,
                 )
             } else {
                 bail!(ErrorKind::SnapshotNotFound);
@@ -213,6 +212,11 @@ impl SnapshotDbManagerSqlite {
         self.already_open_snapshots
             .write()
             .insert(snapshot_path.clone(), None);
+
+        if epoch_height >= SnapshotDbManagerSqlite::TARGET_EPOCH {
+            snapshot_db.drop_mpt_table().unwrap();
+        }
+
         Ok(snapshot_db)
     }
 
@@ -374,7 +378,7 @@ impl SnapshotDbManagerSqlite {
 
     fn copy_and_merge(
         &self, temp_snapshot_db: &mut SnapshotDbSqlite,
-        old_snapshot_epoch_id: &EpochId, old_epoch_height: u64,
+        old_snapshot_epoch_id: &EpochId,
     ) -> Result<MerkleHash>
     {
         let snapshot_path = self.get_snapshot_db_path(old_snapshot_epoch_id);
@@ -454,7 +458,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
         delta_mpt: DeltaMptIterator,
         mut in_progress_snapshot_info: SnapshotInfo,
         snapshot_info_map_rwlock: &'m RwLock<PersistedSnapshotInfoMap>,
-        old_epoch_height: u64, new_epoch_height: u64,
+        new_epoch_height: u64,
     ) -> Result<(RwLockWriteGuard<'m, PersistedSnapshotInfoMap>, SnapshotInfo)>
     {
         debug!(
@@ -469,7 +473,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
 
         let mut snapshot_db;
         let mut cow = false;
-        let v = self.open_snapshot_mpt.as_ref().unwrap();
+        let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
 
         let new_snapshot_root = if *old_snapshot_epoch_id == NULL_EPOCH {
             // direct merge the first snapshot
@@ -477,7 +481,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                 temp_db_path.as_path(),
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
-                v,
+                open_snapshot_mpt,
                 new_epoch_height < SnapshotDbManagerSqlite::TARGET_EPOCH,
             )?;
             snapshot_db.dump_delta_mpt(&delta_mpt)?;
@@ -512,11 +516,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                     new_epoch_height,
                 )?;
                 snapshot_db.dump_delta_mpt(&delta_mpt)?;
-                self.copy_and_merge(
-                    &mut snapshot_db,
-                    old_snapshot_epoch_id,
-                    old_epoch_height,
-                )?
+                self.copy_and_merge(&mut snapshot_db, old_snapshot_epoch_id)?
             }
         };
         in_progress_snapshot_info.merkle_root = new_snapshot_root.clone();
