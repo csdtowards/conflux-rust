@@ -72,7 +72,7 @@ pub trait SnapshotDbManagerTrait {
         &self, old_snapshot_epoch_id: &EpochId, snapshot_epoch_id: EpochId,
         delta_mpt: DeltaMptIterator, in_progress_snapshot_info: SnapshotInfo,
         snapshot_info_map: &'m RwLock<PersistedSnapshotInfoMap>,
-        old_epoch_height: u64, new_epoch_height: u64,
+        new_epoch_height: u64,
     ) -> Result<(RwLockWriteGuard<'m, PersistedSnapshotInfoMap>, SnapshotInfo)>;
     fn get_snapshot_by_epoch_id(
         &self, epoch_id: &EpochId, try_open: bool,

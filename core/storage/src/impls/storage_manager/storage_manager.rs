@@ -636,7 +636,6 @@ impl StorageManager {
                                     snapshot_epoch_id.clone(), delta_db,
                                     in_progress_snapshot_info_cloned,
                                 &this.snapshot_info_map_by_epoch,
-                                parent_snapshot_epoch_height,
                             height,
                             )?
                         }
