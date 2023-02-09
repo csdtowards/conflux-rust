@@ -99,6 +99,7 @@ fn main() -> Result<(), Error> {
             delta_mpt_iterator,
             info,
             &storage_manager.snapshot_info_map_by_epoch,
+            height,
         )?;
     storage_manager.register_new_snapshot(
         snapshot_info1.clone(),
@@ -168,6 +169,7 @@ fn main() -> Result<(), Error> {
             delta_mpt_iterator,
             info,
             &storage_manager.snapshot_info_map_by_epoch,
+            height,
         )?;
     println!(
         "After merging: {:?}, accounts size {}",
@@ -232,6 +234,7 @@ fn main() -> Result<(), Error> {
             delta_mpt_iterator,
             info,
             &storage_manager.snapshot_info_map_by_epoch,
+            height,
         )?;
     storage_manager.register_new_snapshot(
         snapshot_info3.clone(),

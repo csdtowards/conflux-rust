@@ -31,7 +31,7 @@ pub type AlreadyOpenSnapshots<T> =
 
 impl SnapshotDbManagerSqlite {
     const SNAPSHOT_DB_SQLITE_DIR_PREFIX: &'static str = "sqlite_";
-    const TARGET_EPOCH: u64 = 100;
+    const TARGET_EPOCH: u64 = 64990000;
 
     pub fn new(
         snapshot_path: PathBuf, max_open_snapshots: u16,

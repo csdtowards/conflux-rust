@@ -719,10 +719,8 @@ use crate::{
     KVInserter, SnapshotDbManagerSqlite, SqliteConnection,
 };
 use fallible_iterator::FallibleIterator;
-use parking_lot::Mutex;
 use primitives::{MerkleHash, StorageKeyWithSpace};
 use std::{
-    borrow::BorrowMut,
     fs,
     path::{Path, PathBuf},
     sync::{
