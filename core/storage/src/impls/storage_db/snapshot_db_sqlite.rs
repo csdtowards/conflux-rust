@@ -318,7 +318,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_snapshots_semaphore: &Arc<Semaphore>,
         open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
-        old_version: bool,
+        mpt_table_kv_table_in_same_db: bool,
     ) -> Result<SnapshotDbSqlite>
     {
         fs::create_dir_all(snapshot_path)?;
@@ -335,7 +335,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 // Safe to unwrap since the connections are newly created.
                 kvdb_sqlite_sharded.into_connections().unwrap();
             // Create Snapshot MPT table.
-            if old_version {
+            if mpt_table_kv_table_in_same_db {
                 KvdbSqliteSharded::<Self::ValueType>::create_table(
                     &mut connections,
                     &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
@@ -355,7 +355,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 path: snapshot_path.to_path_buf(),
                 remove_on_close: Default::default(),
                 open_snapshot_mpt: Some(open_snapshot_mpt.clone()),
-                mpt_table_kv_table_in_same_db: old_version,
+                mpt_table_kv_table_in_same_db,
             }),
         }
     }

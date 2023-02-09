@@ -136,7 +136,7 @@ pub trait SnapshotDbTrait:
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_semaphore: &Arc<Semaphore>,
         open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
-        old_version: bool,
+        mpt_table_kv_table_in_same_db: bool,
     ) -> StorageResult<Self>;
 
     fn direct_merge(&mut self) -> StorageResult<MerkleHash>;
