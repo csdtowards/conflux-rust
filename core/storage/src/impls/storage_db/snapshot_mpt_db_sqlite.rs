@@ -12,7 +12,7 @@ pub struct SnapshotMptDbSqlite {
 }
 
 pub struct SnapshotMptDbStatements {
-    mpt_statements: Arc<KvdbSqliteStatements>,
+    pub mpt_statements: Arc<KvdbSqliteStatements>,
 }
 
 lazy_static! {

@@ -611,6 +611,8 @@ impl StorageManager {
                 pivot_chain_parts,
             };
 
+            let parent_snapshot_epoch_height =
+                in_progress_snapshot_info.parent_snapshot_height;
             let parent_snapshot_epoch_id_cloned =
                 in_progress_snapshot_info.parent_snapshot_epoch_id.clone();
             let mut in_progress_snapshot_info_cloned =
@@ -633,7 +635,10 @@ impl StorageManager {
                                     &parent_snapshot_epoch_id_cloned,
                                     snapshot_epoch_id.clone(), delta_db,
                                     in_progress_snapshot_info_cloned,
-                                &this.snapshot_info_map_by_epoch)?
+                                &this.snapshot_info_map_by_epoch,
+                                parent_snapshot_epoch_height,
+                            height,
+                            )?
                         }
                     };
                     if let Err(e) = this.register_new_snapshot(new_snapshot_info.clone(), &mut snapshot_info_map_locked) {
