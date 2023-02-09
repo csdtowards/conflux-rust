@@ -48,7 +48,7 @@ pub struct KvdbSqliteStatementsPerTable {
     pub range_select_statement: String,
     pub range_select_till_end_statement: String,
     pub range_excl_select_statement: String,
-    pub table_if_exists: String,
+    pub select_tbl_name: String,
 }
 
 impl KvdbSqliteStatements {
@@ -76,7 +76,7 @@ impl KvdbSqliteStatements {
     pub const RANGE_SELECT_STATEMENT_TILL_END: &'static str =
         "SELECT key {comma_value_columns} FROM {table_name} \
          WHERE key >= :lower_bound_incl ORDER BY key ASC";
-    pub const TABLE_IF_EXISTS: &'static str =  "SELECT tbl_name FROM sqlite_master WHERE tbl_name = \"{table_name}\" AND type = \"table\"";
+    pub const SELECT_TBL_NAME: &'static str =  "SELECT tbl_name FROM sqlite_master WHERE tbl_name = \"{table_name}\" AND type = \"table\"";
 
     pub fn make_statements(
         value_column_names: &[&str], value_column_types: &[&str],
@@ -184,8 +184,8 @@ impl KvdbSqliteStatementsPerTable {
                 KvdbSqliteStatements::RANGE_EXCL_SELECT_STATEMENT,
                 &strfmt_vars,
             )?,
-            table_if_exists: strfmt(
-                KvdbSqliteStatements::TABLE_IF_EXISTS,
+            select_tbl_name: strfmt(
+                KvdbSqliteStatements::SELECT_TBL_NAME,
                 &strfmt_vars,
             )?,
         })
@@ -317,23 +317,22 @@ impl<ValueType> KvdbSqlite<ValueType> {
             .finish_ignore_rows()
     }
 
-    pub fn check_table(
+    pub fn check_if_table_exist(
         connection: &mut SqliteConnection, statements: &KvdbSqliteStatements,
     ) -> Result<bool> {
         // Create the extra table for bytes key when the main table has
         // number key.
-        if statements.stmts_main_table.table_if_exists
-            != statements.stmts_bytes_key_table.table_if_exists
+        if statements.stmts_main_table.select_tbl_name
+            != statements.stmts_bytes_key_table.select_tbl_name
         {
-            let x = connection
+            if let Some(_) = connection
                 .execute(
-                    &statements.stmts_bytes_key_table.table_if_exists,
+                    &statements.stmts_bytes_key_table.select_tbl_name,
                     SQLITE_NO_PARAM,
                 )?
-                .map(|row| true)
-                .expect_one_row()?;
-
-            if let Some(_) = x {
+                .map(|_| true)
+                .expect_one_row()?
+            {
                 return Ok(true);
             }
         }
@@ -341,15 +340,14 @@ impl<ValueType> KvdbSqlite<ValueType> {
         // Main table. When with_number_key_table is true it's the
         // number key table. Otherwise it's the bytes
         // key table.
-        let x = connection
+        if let Some(_) = connection
             .execute(
-                &statements.stmts_main_table.table_if_exists,
+                &statements.stmts_main_table.select_tbl_name,
                 SQLITE_NO_PARAM,
             )?
-            .map(|row| true)
-            .expect_one_row()?;
-
-        if let Some(_) = x {
+            .map(|_| true)
+            .expect_one_row()?
+        {
             Ok(true)
         } else {
             Ok(false)
