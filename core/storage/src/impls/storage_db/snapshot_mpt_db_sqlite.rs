@@ -5,10 +5,6 @@
 pub struct SnapshotMptDbSqlite {
     // Option because we need an empty snapshot db for empty snapshot.
     maybe_db_connections: Option<Box<[SqliteConnection]>>,
-    already_open_snapshots: AlreadyOpenSnapshots<Self>,
-    open_semaphore: Arc<Semaphore>,
-    path: PathBuf,
-    remove_on_close: AtomicBool,
 }
 
 pub struct SnapshotMptDbStatements {
@@ -29,20 +25,6 @@ lazy_static! {
 
         SnapshotMptDbStatements { mpt_statements }
     };
-}
-
-impl Drop for SnapshotMptDbSqlite {
-    fn drop(&mut self) {
-        if !self.path.as_os_str().is_empty() {
-            self.maybe_db_connections.take();
-            // SnapshotDbManagerSqlite::on_close(
-            //     &self.already_open_snapshots,
-            //     &self.open_semaphore,
-            //     &self.path,
-            //     self.remove_on_close.load(Ordering::Relaxed),
-            // )
-        }
-    }
 }
 
 impl SnapshotMptDbSqlite {
@@ -158,10 +140,6 @@ impl SnapshotMptDbSqlite {
         }
     }
 
-    pub fn set_remove_on_last_close(&self) {
-        self.remove_on_close.store(true, Ordering::Relaxed);
-    }
-
     pub fn open(
         snapshot_path: &Path,
         readonly: bool,
@@ -178,10 +156,6 @@ impl SnapshotMptDbSqlite {
 
         Ok(Self {
             maybe_db_connections: kvdb_sqlite_sharded.into_connections(),
-            already_open_snapshots: Default::default(),
-            open_semaphore: Arc::new(Semaphore::new(0)),
-            path: snapshot_path.to_path_buf(),
-            remove_on_close: Default::default(),
         })
     }
 
@@ -201,7 +175,7 @@ impl SnapshotMptDbSqlite {
                     /* create_table = */ true,
                     /* unsafe_mode = */ true,
                 )?;
-            let mut connections =
+            let connections =
                 // Safe to unwrap since the connections are newly created.
                 kvdb_sqlite_sharded.into_connections().unwrap();
             // Create Snapshot MPT table.
@@ -218,10 +192,6 @@ impl SnapshotMptDbSqlite {
             }
             Ok(connections) => Ok(SnapshotMptDbSqlite {
                 maybe_db_connections: Some(connections),
-                already_open_snapshots: Default::default(),
-                open_semaphore: Arc::new(Semaphore::new(0)),
-                path: snapshot_path.to_path_buf(),
-                remove_on_close: Default::default(),
             }),
         }
     }
@@ -229,41 +199,21 @@ impl SnapshotMptDbSqlite {
 
 use crate::{
     impls::{
-        delta_mpt::DeltaMptIterator,
         errors::*,
-        merkle_patricia_trie::{MptKeyValue, MptMerger},
         storage_db::{
             kvdb_sqlite::KvdbSqliteStatements,
             kvdb_sqlite_sharded::{
                 KvdbSqliteSharded, KvdbSqliteShardedBorrowMut,
                 KvdbSqliteShardedBorrowShared,
-                KvdbSqliteShardedDestructureTrait,
-                KvdbSqliteShardedIteratorTag,
-                KvdbSqliteShardedRefDestructureTrait,
             },
-            snapshot_db_manager_sqlite::AlreadyOpenSnapshots,
-            snapshot_mpt::{SnapshotMpt, SnapshotMptLoadNode},
-            sqlite::SQLITE_NO_PARAM,
+            snapshot_mpt::SnapshotMpt,
         },
     },
     storage_db::{
-        KeyValueDbIterableTrait, KeyValueDbTraitSingleWriter, KeyValueDbTypes,
-        OpenSnapshotMptTrait, OwnedReadImplByFamily, OwnedReadImplFamily,
-        ReadImplByFamily, ReadImplFamily, SingleWriterImplByFamily,
-        SingleWriterImplFamily, SnapshotDbTrait, SnapshotMptDbValue,
-        SnapshotMptTraitReadAndIterate, SnapshotMptTraitRw,
+        KeyValueDbTypes, OpenSnapshotMptTrait, OwnedReadImplFamily,
+        ReadImplFamily, SingleWriterImplFamily, SnapshotMptDbValue,
     },
-    utils::wrap::Wrap,
-    KVInserter, SnapshotDbManagerSqlite, SqliteConnection,
+    SqliteConnection,
 };
-use fallible_iterator::FallibleIterator;
-use primitives::{MerkleHash, StorageKeyWithSpace};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
-use tokio::sync::Semaphore;
+
+use std::{fs, path::Path, sync::Arc};

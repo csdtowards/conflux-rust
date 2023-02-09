@@ -611,8 +611,6 @@ impl StorageManager {
                 pivot_chain_parts,
             };
 
-            let parent_snapshot_epoch_height =
-                in_progress_snapshot_info.parent_snapshot_height;
             let parent_snapshot_epoch_id_cloned =
                 in_progress_snapshot_info.parent_snapshot_epoch_id.clone();
             let mut in_progress_snapshot_info_cloned =
