@@ -195,6 +195,24 @@ impl SnapshotMptDbSqlite {
             }),
         }
     }
+
+    pub fn start_transaction(&mut self) -> Result<()> {
+        if let Some(connections) = self.maybe_db_connections.as_mut() {
+            for connection in connections.iter_mut() {
+                connection.execute("BEGIN IMMEDIATE", SQLITE_NO_PARAM)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn commit_transaction(&mut self) -> Result<()> {
+        if let Some(connections) = self.maybe_db_connections.as_mut() {
+            for connection in connections.iter_mut() {
+                connection.execute("COMMIT", SQLITE_NO_PARAM)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 use crate::{
@@ -217,3 +235,5 @@ use crate::{
 };
 
 use std::{fs, path::Path, sync::Arc};
+
+use super::sqlite::SQLITE_NO_PARAM;

@@ -12,6 +12,7 @@ fn check_snapshot_mpt_integrity() {
     let db_path = Path::new(DB_PATH);
     let snapshot_db =
         open_snapshot_db_for_testing(db_path, /* readonly = */ true).unwrap();
+
     let mut key_value_iter = snapshot_db.snapshot_kv_iterator().unwrap().take();
     let total_kvs = check_key_value_load(
         &snapshot_db,
@@ -21,6 +22,68 @@ fn check_snapshot_mpt_integrity() {
     .unwrap();
     println!("verified {} key values", total_kvs);
 }
+
+// #[test]
+// fn test_copy() {
+//     use parking_lot::RwLock;
+
+//     use crate::impls::storage_db::snapshot_mpt_db_sqlite::
+// SnapshotMptDbSqlite;
+
+//     let db_path =
+//         Path::new("/home/ubuntu/mnt/blockchain_data/storage_db/snapshot/abc"
+// );
+
+//     let p =
+//         Path::new("/home/ubuntu/mnt/blockchain_data/storage_db/snapshot/mpt"
+// );     let r = SnapshotMptDbSqlite::create(p).unwrap();
+//     let x = Arc::new(RwLock::new(r));
+
+//     let mut x = SnapshotDbSqlite::open(
+//         db_path,
+//         /* readonly = */ false,
+//         &Default::default(),
+//         &Arc::new(Semaphore::new(DEFAULT_MAX_OPEN_SNAPSHOTS as usize)),
+//         &x,
+//     )
+//     .unwrap();
+
+//     x.drop_mpt_table().unwrap();
+// }
+
+// #[test]
+// fn test_copy1() {
+//     use parking_lot::RwLock;
+
+//     use crate::impls::storage_db::snapshot_mpt_db_sqlite::
+// SnapshotMptDbSqlite;
+
+//     let db_path = Path::new(DB_PATH);
+//     let snapshot_db =
+//         open_snapshot_db_for_testing(db_path, /* readonly = */
+// true).unwrap();
+
+//     let db_path =
+//         Path::new("/home/ubuntu/mnt/blockchain_data/storage_db/snapshot/abc2"
+// );
+
+//     let p =
+//         Path::new("/home/ubuntu/mnt/blockchain_data/storage_db/snapshot/mpt"
+// );     let r = SnapshotMptDbSqlite::create(p).unwrap();
+//     let x = Arc::new(RwLock::new(r));
+
+//     let mut x = SnapshotDbSqlite::create(
+//         db_path,
+//         &Default::default(),
+//         &Arc::new(Semaphore::new(DEFAULT_MAX_OPEN_SNAPSHOTS as usize)),
+//         &x,
+//         false,
+//     )
+//     .unwrap();
+
+//     x.ffff().unwrap();
+//     x.copy_and_merge(&snapshot_db).unwrap();
+// }
 
 #[test]
 fn check_snapshot_mpt_root() {
@@ -202,11 +265,13 @@ fn check_snapshot_mpt_by_iter() {
 }
 
 use crate::{
+    defaults::DEFAULT_MAX_OPEN_SNAPSHOTS,
     impls::{
         errors::*,
         merkle_patricia_trie::{mpt_cursor::*, MptMerger, *},
-        storage_db::snapshot_db_sqlite::test_lib::{
-            check_key_value_load, open_snapshot_db_for_testing,
+        storage_db::snapshot_db_sqlite::{
+            test_lib::{check_key_value_load, open_snapshot_db_for_testing},
+            SnapshotDbSqlite,
         },
     },
     storage_db::{
@@ -218,4 +283,5 @@ use crate::{
     utils::{tuple::ElementSatisfy, wrap::WrappedTrait},
 };
 use fallible_iterator::FallibleIterator;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
+use tokio::sync::Semaphore;

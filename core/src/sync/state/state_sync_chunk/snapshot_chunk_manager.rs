@@ -174,6 +174,7 @@ impl SnapshotChunkManager {
                 timeout_chunks.push(chunk_key.clone());
             }
         }
+        debug!("timeout chunks {:?}", timeout_chunks);
         for timeout_key in timeout_chunks {
             self.downloading_chunks.remove(&timeout_key);
             self.pending_chunks.push_back(timeout_key);
