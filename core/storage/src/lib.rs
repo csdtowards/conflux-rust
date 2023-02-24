@@ -56,6 +56,8 @@ pub struct ConsensusParam {
     // Only if we see problem dealing with attacks, consider rules like the
     // size of delta trie.
     pub snapshot_epoch_count: u32,
+
+    pub era_epoch_count: u64,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -122,6 +124,8 @@ pub struct StorageConfiguration {
     pub enable_single_mpt_storage: bool,
     pub single_mpt_space: Option<Space>,
     pub cip90a: u64,
+    pub use_isolated_db_for_mpt_table: bool,
+    pub use_isolated_db_for_mpt_table_height: Option<u64>,
 }
 
 impl StorageConfiguration {
@@ -133,6 +137,7 @@ impl StorageConfiguration {
             additional_maintained_snapshot_count: 0,
             consensus_param: ConsensusParam {
                 snapshot_epoch_count,
+                era_epoch_count: 20000,
             },
             debug_snapshot_checker_threads:
                 defaults::DEFAULT_DEBUG_SNAPSHOT_CHECKER_THREADS,
@@ -160,6 +165,8 @@ impl StorageConfiguration {
             enable_single_mpt_storage: false,
             single_mpt_space: None,
             cip90a: 0,
+            use_isolated_db_for_mpt_table: false,
+            use_isolated_db_for_mpt_table_height: None,
         }
     }
 

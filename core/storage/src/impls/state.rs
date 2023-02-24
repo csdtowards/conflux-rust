@@ -330,7 +330,7 @@ impl StateTrait for State {
         debug!(
             "commit state for epoch {:?}: merkle_root = {:?}, delta_trie_height={:?} \
             has_intermediate={}, height={:?}, snapshot_epoch_id={:?}, \
-            intermediate_epoch_id={:?}, intermediate_mpt_id={:?}, delta_mpt_id={}.",
+            intermediate_epoch_id={:?}, intermediate_mpt_id={:?}, delta_mpt_id={}, intermediate_trie_root={:?}.",
             epoch_id,
             merkle_root,
             self.delta_trie_height,
@@ -340,6 +340,7 @@ impl StateTrait for State {
             self.intermediate_epoch_id,
             self.maybe_intermediate_trie.as_ref().map(|mpt| mpt.get_mpt_id()),
             self.delta_trie.get_mpt_id(),
+            self.intermediate_trie_root,
         );
         if commit_result.is_err() {
             self.revert();

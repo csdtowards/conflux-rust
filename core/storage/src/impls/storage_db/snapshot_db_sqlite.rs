@@ -73,6 +73,7 @@ lazy_static! {
 
 impl Drop for SnapshotDbSqlite {
     fn drop(&mut self) {
+        debug!("drop SnapshotDbSqlite");
         if !self.path.as_os_str().is_empty() {
             self.maybe_db_connections.take();
             SnapshotDbManagerSqlite::on_close(

@@ -380,6 +380,11 @@ impl SynchronizationPhaseTrait for CatchUpCheckpointPhase {
             return;
         }
 
+        debug!(
+            "current_era_genesis {}, epoch_to_sync {}",
+            current_era_genesis, epoch_to_sync
+        );
+
         self.state_sync.update_status(
             current_era_genesis,
             epoch_to_sync,

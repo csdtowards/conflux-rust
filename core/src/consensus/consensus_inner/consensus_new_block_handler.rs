@@ -1507,6 +1507,11 @@ impl ConsensusNewBlockHandler {
             }
         }
 
+        debug!(
+            "inner.cur_era_genesis_height {}, inner.cur_era_stable_height {}",
+            inner.cur_era_genesis_height, inner.cur_era_stable_height
+        );
+
         // We are only going to check the checkpoint movement after the stable
         // is on the pivot chain (will not always be true during the recovery).
         // The code inside assumes this assumption.
@@ -1544,6 +1549,10 @@ impl ConsensusNewBlockHandler {
                     &inner.arena[stable_era_genesis_arena_index].hash,
                     inner.cur_era_genesis_height
                 );
+
+                debug!("inner.cur_era_genesis_height {}, inner.cur_era_stable_height {}, cur_era_stable_block_hash {:?}", inner.cur_era_genesis_height, inner.cur_era_stable_height, inner.cur_era_stable_block_hash);
+                let storage_manager =
+                    self.data_man.storage_manager.get_storage_manager();
             }
         }
 

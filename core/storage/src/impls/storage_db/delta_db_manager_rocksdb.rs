@@ -39,6 +39,7 @@ impl DeltaDbManagerTrait for DeltaDbManagerRocksdb {
     fn get_delta_db_dir(&self) -> &Path { self.delta_db_path.as_path() }
 
     fn get_delta_db_name(&self, snapshot_epoch_id: &EpochId) -> String {
+        debug!("get_delta_db_name {:?}", snapshot_epoch_id);
         Self::DELTA_DB_ROCKSDB_DIR_PREFIX.to_string()
             + &snapshot_epoch_id.as_ref().to_hex::<String>()
     }
