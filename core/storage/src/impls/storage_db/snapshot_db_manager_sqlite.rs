@@ -31,7 +31,8 @@ pub type AlreadyOpenSnapshots<T> =
 
 impl SnapshotDbManagerSqlite {
     const SNAPSHOT_DB_SQLITE_DIR_PREFIX: &'static str = "sqlite_";
-    const TARGET_EPOCH: u64 = 64990000;
+    // const TARGET_EPOCH: u64 = 65246500;
+    const TARGET_EPOCH: u64 = 65370000;
 
     pub fn new(
         snapshot_path: PathBuf, max_open_snapshots: u16,
@@ -40,7 +41,7 @@ impl SnapshotDbManagerSqlite {
             fs::create_dir_all(snapshot_path.clone())?;
         }
 
-        let mpt_db_path = snapshot_path.join("mpt");
+        let mpt_db_path = snapshot_path.parent().unwrap().join("mpt");
         let open_snapshot_mpt = if mpt_db_path.exists() {
             let snapshot_mapt_db =
                 SnapshotMptDbSqlite::open(mpt_db_path.as_path(), false)
@@ -185,7 +186,7 @@ impl SnapshotDbManagerSqlite {
         }
 
         let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
-        let mut snapshot_db = if create {
+        let snapshot_db = if create {
             SnapshotDbSqlite::create(
                 snapshot_path.as_path(),
                 &self.already_open_snapshots,
@@ -196,13 +197,19 @@ impl SnapshotDbManagerSqlite {
         } else {
             let file_exists = snapshot_path.exists();
             if file_exists {
-                SnapshotDbSqlite::open(
+                let mut db = SnapshotDbSqlite::open(
                     snapshot_path.as_path(),
                     /* readonly = */ false,
                     &self.already_open_snapshots,
                     &self.open_snapshot_semaphore,
                     &open_snapshot_mpt,
-                )
+                )?;
+
+                if epoch_height >= SnapshotDbManagerSqlite::TARGET_EPOCH {
+                    db.drop_mpt_table().unwrap();
+                }
+
+                Ok(db)
             } else {
                 bail!(ErrorKind::SnapshotNotFound);
             }
@@ -212,10 +219,6 @@ impl SnapshotDbManagerSqlite {
         self.already_open_snapshots
             .write()
             .insert(snapshot_path.clone(), None);
-
-        if epoch_height >= SnapshotDbManagerSqlite::TARGET_EPOCH {
-            snapshot_db.drop_mpt_table().unwrap();
-        }
 
         Ok(snapshot_db)
     }
@@ -462,8 +465,8 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
     ) -> Result<(RwLockWriteGuard<'m, PersistedSnapshotInfoMap>, SnapshotInfo)>
     {
         debug!(
-            "new_snapshot_by_merging: old={:?} new={:?}",
-            old_snapshot_epoch_id, snapshot_epoch_id
+            "new_snapshot_by_merging: old={:?} new={:?} new epoch height={}",
+            old_snapshot_epoch_id, snapshot_epoch_id, new_epoch_height,
         );
         // FIXME: clean-up when error happens.
         let temp_db_path = self.get_merge_temp_snapshot_db_path(
@@ -485,7 +488,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                 new_epoch_height < SnapshotDbManagerSqlite::TARGET_EPOCH,
             )?;
             snapshot_db.dump_delta_mpt(&delta_mpt)?;
-            snapshot_db.direct_merge()?
+            snapshot_db.direct_merge(None)?
         } else {
             if let Ok(copy_type) = self.try_copy_snapshot(
                 self.get_snapshot_db_path(old_snapshot_epoch_id).as_path(),
@@ -508,7 +511,18 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
 
                 // iterate and insert into temp table.
                 snapshot_db.dump_delta_mpt(&delta_mpt)?;
-                snapshot_db.direct_merge()?
+
+                let snapshot_path =
+                    self.get_snapshot_db_path(old_snapshot_epoch_id);
+                let maybe_old_snapshot_db = Self::open_snapshot_readonly(
+                    self,
+                    snapshot_path,
+                    /* try_open = */ false,
+                )?;
+                let old_snapshot_db = maybe_old_snapshot_db
+                    .ok_or(Error::from(ErrorKind::SnapshotNotFound))?;
+
+                snapshot_db.direct_merge(Some(&old_snapshot_db))?
             } else {
                 snapshot_db = self.open_snapshot_write(
                     temp_db_path.clone(),

@@ -240,6 +240,16 @@ impl<ValueType> KvdbSqliteSharded<ValueType> {
     {
         for connection in connections.iter_mut() {
             KvdbSqlite::<ValueType>::drop_table(connection, statements)?;
+        }
+        Ok(())
+    }
+
+    pub fn vacumm_db(
+        connections: &mut Box<[SqliteConnection]>,
+        statements: &KvdbSqliteStatements,
+    ) -> Result<()>
+    {
+        for connection in connections.iter_mut() {
             KvdbSqlite::<ValueType>::vacuum_db(connection, statements)?
         }
         Ok(())

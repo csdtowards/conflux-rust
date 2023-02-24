@@ -438,7 +438,11 @@ impl SnapshotDbTrait for Arc<Mutex<FakeSnapshotDb>> {
         unreachable!()
     }
 
-    fn direct_merge(&mut self) -> Result<MerkleHash> { unreachable!() }
+    fn direct_merge(
+        &mut self, old_snapshot_db: Option<&Self>,
+    ) -> Result<MerkleHash> {
+        unreachable!()
+    }
 
     fn copy_and_merge(
         &mut self, _old_snapshot_db: &Self,

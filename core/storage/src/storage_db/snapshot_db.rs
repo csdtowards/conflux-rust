@@ -139,7 +139,9 @@ pub trait SnapshotDbTrait:
         mpt_table_kv_table_in_same_db: bool,
     ) -> StorageResult<Self>;
 
-    fn direct_merge(&mut self) -> StorageResult<MerkleHash>;
+    fn direct_merge(
+        &mut self, old_snapshot_db: Option<&Self>,
+    ) -> StorageResult<MerkleHash>;
 
     fn copy_and_merge(
         &mut self, old_snapshot_db: &Self,

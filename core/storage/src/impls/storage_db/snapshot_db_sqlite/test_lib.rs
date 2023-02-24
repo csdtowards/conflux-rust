@@ -6,11 +6,21 @@
 pub fn open_snapshot_db_for_testing(
     snapshot_path: &Path, readonly: bool,
 ) -> Result<SnapshotDbSqlite> {
+    use parking_lot::RwLock;
+
+    use crate::impls::storage_db::snapshot_mpt_db_sqlite::SnapshotMptDbSqlite;
+
+    let p =
+        Path::new("/home/ubuntu/mnt/blockchain_data/storage_db/snapshot/mpt");
+    let r = SnapshotMptDbSqlite::create(p).unwrap();
+    let x = Arc::new(RwLock::new(r));
+
     SnapshotDbSqlite::open(
         snapshot_path,
         readonly,
         &Default::default(),
         &Arc::new(Semaphore::new(DEFAULT_MAX_OPEN_SNAPSHOTS as usize)),
+        &x,
     )
 }
 

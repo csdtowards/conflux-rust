@@ -361,7 +361,9 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
     }
 
     // FIXME: use a mechanism with rate limit.
-    fn direct_merge(&mut self) -> Result<MerkleHash> {
+    fn direct_merge(
+        &mut self, old_snapshot_db: Option<&SnapshotDbSqlite>,
+    ) -> Result<MerkleHash> {
         debug!("direct_merge begins.");
         self.apply_update_to_kvdb()?;
 
@@ -372,11 +374,50 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         self.start_transaction()?;
         // TODO: what about multi-threading node load?
         let mut mpt_to_modify = self.open_snapshot_mpt_owned()?;
+        let mut base_mpt;
 
-        let mut mpt_merger = MptMerger::new(
-            None,
-            &mut mpt_to_modify as &mut dyn SnapshotMptTraitRw,
-        );
+        let mut mpt_merger = match old_snapshot_db {
+            Some(db) => {
+                if !self.mpt_table_kv_table_in_same_db()
+                    && db.mpt_table_kv_table_in_same_db()
+                {
+                    base_mpt = db.open_snapshot_mpt_as_owned()?;
+                    MptMerger::new(
+                        Some(
+                            &mut base_mpt
+                                as &mut dyn SnapshotMptTraitReadAndIterate,
+                        ),
+                        &mut mpt_to_modify as &mut dyn SnapshotMptTraitRw,
+                    )
+                } else {
+                    MptMerger::new(
+                        None,
+                        &mut mpt_to_modify as &mut dyn SnapshotMptTraitRw,
+                    )
+                }
+            }
+            _ => MptMerger::new(
+                None,
+                &mut mpt_to_modify as &mut dyn SnapshotMptTraitRw,
+            ),
+        };
+
+        // let mut base_mpt = old_snapshot_db.open_snapshot_mpt_as_owned()?;
+
+        // let mut mpt_merger = if !self.mpt_table_kv_table_in_same_db()
+        //     && old_snapshot_db.mpt_table_kv_table_in_same_db()
+        // {
+        //     MptMerger::new(
+        //         Some(&mut base_mpt as &mut dyn
+        // SnapshotMptTraitReadAndIterate),         &mut mpt_to_modify
+        // as &mut dyn SnapshotMptTraitRw,     )
+        // } else {
+        //     MptMerger::new(
+        //         None,
+        //         &mut mpt_to_modify as &mut dyn SnapshotMptTraitRw,
+        //     )
+        // };
+
         let snapshot_root = mpt_merger.merge_insertion_deletion_separated(
             delete_keys_iter.iter_range(&[], None)?.take(),
             set_keys_iter.iter_range(&[], None)?.take(),
@@ -392,7 +433,6 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         debug!("copy_and_merge begins.");
         let mut kv_iter = old_snapshot_db.snapshot_kv_iterator()?.take();
         let mut iter = kv_iter.iter_range(&[], None)?.take();
-        self.start_transaction()?;
         while let Ok(kv_item) = iter.next() {
             match kv_item {
                 Some((k, v)) => {
@@ -401,6 +441,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 None => break,
             }
         }
+
         self.commit_transaction()?;
         println!("======================");
         self.apply_update_to_kvdb()?;
@@ -439,6 +480,15 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 connection.execute("BEGIN IMMEDIATE", SQLITE_NO_PARAM)?;
             }
         }
+
+        if !self.mpt_table_kv_table_in_same_db {
+            self.open_snapshot_mpt
+                .as_ref()
+                .unwrap()
+                .write()
+                .start_transaction()?;
+        }
+
         Ok(())
     }
 
@@ -448,6 +498,15 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 connection.execute("COMMIT", SQLITE_NO_PARAM)?;
             }
         }
+
+        if !self.mpt_table_kv_table_in_same_db {
+            self.open_snapshot_mpt
+                .as_ref()
+                .unwrap()
+                .write()
+                .commit_transaction()?;
+        }
+
         Ok(())
     }
 
@@ -574,9 +633,13 @@ impl SnapshotDbSqlite {
     }
 
     pub fn drop_mpt_table(&mut self) -> Result<()> {
-        // Safe to unwrap since we are not on a NULL snapshot.
         let connections = self.maybe_db_connections.as_mut().unwrap();
         KvdbSqliteSharded::<()>::drop_table(
+            connections,
+            &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
+        )?;
+        self.mpt_table_kv_table_in_same_db = false;
+        KvdbSqliteSharded::<()>::vacumm_db(
             connections,
             &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
         )
