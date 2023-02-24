@@ -1506,7 +1506,10 @@ impl ConsensusNewBlockHandler {
             }
         }
 
-        debug!("inner.cur_era_genesis_height {}, inner.cur_era_stable_height {}", inner.cur_era_genesis_height, inner.cur_era_stable_height);
+        debug!(
+            "inner.cur_era_genesis_height {}, inner.cur_era_stable_height {}",
+            inner.cur_era_genesis_height, inner.cur_era_stable_height
+        );
 
         // We are only going to check the checkpoint movement after the stable
         // is on the pivot chain (will not always be true during the recovery).

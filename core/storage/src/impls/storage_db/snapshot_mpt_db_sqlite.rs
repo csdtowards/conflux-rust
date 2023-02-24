@@ -5,6 +5,10 @@
 pub struct SnapshotMptDbSqlite {
     // Option because we need an empty snapshot db for empty snapshot.
     maybe_db_connections: Option<Box<[SqliteConnection]>>,
+    already_open_snapshots: AlreadyOpenSnapshots<RwLock<Self>>,
+    open_semaphore: Arc<Semaphore>,
+    path: PathBuf,
+    remove_on_close: AtomicBool,
 }
 
 pub struct SnapshotMptDbStatements {
@@ -25,6 +29,21 @@ lazy_static! {
 
         SnapshotMptDbStatements { mpt_statements }
     };
+}
+
+impl Drop for SnapshotMptDbSqlite {
+    fn drop(&mut self) {
+        debug!("drop SnapshotMptDbSqlite");
+        if !self.path.as_os_str().is_empty() {
+            self.maybe_db_connections.take();
+            SnapshotDbManagerSqlite::on_close1(
+                &self.already_open_snapshots,
+                &self.open_semaphore,
+                &self.path,
+                self.remove_on_close.load(Ordering::Relaxed),
+            )
+        }
+    }
 }
 
 impl SnapshotMptDbSqlite {
@@ -141,10 +160,9 @@ impl SnapshotMptDbSqlite {
     }
 
     pub fn open(
-        snapshot_path: &Path,
-        readonly: bool,
-        /* already_open_snapshots: &AlreadyOpenSnapshots<Self>,
-         * open_semaphore: &Arc<Semaphore>, */
+        snapshot_path: &Path, readonly: bool,
+        already_open_snapshots: &AlreadyOpenSnapshots<RwLock<Self>>,
+        open_semaphore: &Arc<Semaphore>,
     ) -> Result<SnapshotMptDbSqlite>
     {
         let kvdb_sqlite_sharded = KvdbSqliteSharded::<Box<[u8]>>::open(
@@ -156,13 +174,17 @@ impl SnapshotMptDbSqlite {
 
         Ok(Self {
             maybe_db_connections: kvdb_sqlite_sharded.into_connections(),
+            already_open_snapshots: already_open_snapshots.clone(),
+            open_semaphore: open_semaphore.clone(),
+            path: snapshot_path.to_path_buf(),
+            remove_on_close: Default::default(),
         })
     }
 
     pub fn create(
         snapshot_path: &Path,
-        /* already_open_snapshots: &AlreadyOpenSnapshots<Self>,
-         * open_snapshots_semaphore: &Arc<Semaphore>, */
+        already_open_snapshots: &AlreadyOpenSnapshots<RwLock<Self>>,
+        open_snapshots_semaphore: &Arc<Semaphore>,
     ) -> Result<SnapshotMptDbSqlite>
     {
         fs::create_dir_all(snapshot_path)?;
@@ -192,6 +214,10 @@ impl SnapshotMptDbSqlite {
             }
             Ok(connections) => Ok(SnapshotMptDbSqlite {
                 maybe_db_connections: Some(connections),
+                already_open_snapshots: already_open_snapshots.clone(),
+                open_semaphore: open_snapshots_semaphore.clone(),
+                path: snapshot_path.to_path_buf(),
+                remove_on_close: Default::default(),
             }),
         }
     }
@@ -213,7 +239,14 @@ impl SnapshotMptDbSqlite {
         }
         Ok(())
     }
+
+    pub fn set_remove_on_last_close(&self) {
+        self.remove_on_close.store(true, Ordering::Relaxed);
+    }
 }
+
+use parking_lot::RwLock;
+use tokio::sync::Semaphore;
 
 use crate::{
     impls::{
@@ -231,9 +264,18 @@ use crate::{
         KeyValueDbTypes, OpenSnapshotMptTrait, OwnedReadImplFamily,
         ReadImplFamily, SingleWriterImplFamily, SnapshotMptDbValue,
     },
-    SqliteConnection,
+    SnapshotDbManagerSqlite, SqliteConnection,
 };
 
-use std::{fs, path::Path, sync::Arc};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
-use super::sqlite::SQLITE_NO_PARAM;
+use super::{
+    snapshot_db_manager_sqlite::AlreadyOpenSnapshots, sqlite::SQLITE_NO_PARAM,
+};

@@ -14,6 +14,14 @@ pub struct SnapshotDbManagerSqlite {
     open_snapshot_semaphore: Arc<Semaphore>,
     open_create_delete_lock: Mutex<()>,
     open_snapshot_mpt: Option<Arc<RwLock<SnapshotMptDbSqlite>>>,
+    use_isolated_db_for_mpt_table: bool,
+    use_isolated_db_for_mpt_table_height: Option<u64>,
+    mpt_snapshot_path: PathBuf,
+    mpt_already_open_snapshots:
+        AlreadyOpenSnapshots<RwLock<SnapshotMptDbSqlite>>,
+    mpt_open_snapshot_semaphore: Arc<Semaphore>,
+    mpt_open_create_delete_lock: Mutex<()>,
+    era_epoch_count: u64,
 }
 
 #[derive(Debug)]
@@ -31,25 +39,43 @@ pub type AlreadyOpenSnapshots<T> =
 
 impl SnapshotDbManagerSqlite {
     const SNAPSHOT_DB_SQLITE_DIR_PREFIX: &'static str = "sqlite_";
+    const SNAPSHOT_MPT_DIR: &'static str = "snapshot_mpt";
+    const SNAPSHOT_MPT_LATEST_DIR: &'static str = "latest";
+
     // const TARGET_EPOCH: u64 = 65246500;
-    const TARGET_EPOCH: u64 = 65370000;
+    // const TARGET_EPOCH: u64 = 65370000;
 
     pub fn new(
         snapshot_path: PathBuf, max_open_snapshots: u16,
-    ) -> Result<Self> {
+        use_isolated_db_for_mpt_table: bool,
+        use_isolated_db_for_mpt_table_height: Option<u64>,
+        era_epoch_count: u64,
+    ) -> Result<Self>
+    {
         if !snapshot_path.exists() {
             fs::create_dir_all(snapshot_path.clone())?;
         }
 
-        let mpt_db_path = snapshot_path.parent().unwrap().join("mpt");
+        let mpt_snapshot_db_path = snapshot_path
+            .parent()
+            .unwrap()
+            .join(SnapshotDbManagerSqlite::SNAPSHOT_MPT_DIR);
+        let mpt_db_path = mpt_snapshot_db_path
+            .join(SnapshotDbManagerSqlite::SNAPSHOT_MPT_LATEST_DIR);
         let open_snapshot_mpt = if mpt_db_path.exists() {
-            let snapshot_mapt_db =
-                SnapshotMptDbSqlite::open(mpt_db_path.as_path(), false)
-                    .unwrap();
+            let snapshot_mapt_db = SnapshotMptDbSqlite::open(
+                mpt_db_path.as_path(),
+                false,
+                &Default::default(),
+                &Arc::new(Semaphore::new(max_open_snapshots as usize)),
+            )?;
             Some(Arc::new(RwLock::new(snapshot_mapt_db)))
         } else {
-            let snapshot_mapt_db =
-                SnapshotMptDbSqlite::create(mpt_db_path.as_path()).unwrap();
+            let snapshot_mapt_db = SnapshotMptDbSqlite::create(
+                mpt_db_path.as_path(),
+                &Default::default(),
+                &Arc::new(Semaphore::new(max_open_snapshots as usize)),
+            )?;
             Some(Arc::new(RwLock::new(snapshot_mapt_db)))
         };
 
@@ -62,12 +88,23 @@ impl SnapshotDbManagerSqlite {
             )),
             open_create_delete_lock: Default::default(),
             open_snapshot_mpt,
+            mpt_snapshot_path: mpt_snapshot_db_path,
+            use_isolated_db_for_mpt_table,
+            use_isolated_db_for_mpt_table_height,
+            mpt_already_open_snapshots: Default::default(),
+            mpt_open_snapshot_semaphore: Arc::new(Semaphore::new(
+                max_open_snapshots as usize,
+            )),
+            mpt_open_create_delete_lock: Default::default(),
+            era_epoch_count,
         })
     }
 
     fn open_snapshot_readonly(
         &self, snapshot_path: PathBuf, try_open: bool,
-    ) -> Result<Option<Arc<SnapshotDbSqlite>>> {
+        snapshot_epoch_id: &EpochId,
+    ) -> Result<Option<Arc<SnapshotDbSqlite>>>
+    {
         if let Some(already_open) =
             self.already_open_snapshots.read().get(&snapshot_path)
         {
@@ -78,8 +115,17 @@ impl SnapshotDbManagerSqlite {
                 }
                 Some(open_shared_weak) => {
                     match Weak::upgrade(open_shared_weak) {
-                        None => {}
+                        None => {
+                            debug!(
+                                "new open_snapshot_readonly {:?}",
+                                snapshot_path
+                            );
+                        }
                         Some(already_open) => {
+                            debug!(
+                                "already open_snapshot_readonly {:?}",
+                                snapshot_path
+                            );
                             return Ok(Some(already_open));
                         }
                     }
@@ -135,7 +181,7 @@ impl SnapshotDbManagerSqlite {
                 }
             }
 
-            let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
+            let open_snapshot_mpt = &self.get_mpt_readonly(snapshot_epoch_id); // self.open_snapshot_mpt.as_ref().unwrap();
 
             let snapshot_db = Arc::new(SnapshotDbSqlite::open(
                 snapshot_path.as_path(),
@@ -186,13 +232,25 @@ impl SnapshotDbManagerSqlite {
         }
 
         let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
+        // let open_snapshot_mpt =
+        //     &self.get_mpt_write(epoch_height, snapshot_epoch_id); //
+        // self.open_snapshot_mpt.as_ref().unwrap();
+        let use_new = if self.use_isolated_db_for_mpt_table {
+            match self.use_isolated_db_for_mpt_table_height {
+                Some(v) => epoch_height >= v,
+                _ => true,
+            }
+        } else {
+            false
+        };
+
         let snapshot_db = if create {
             SnapshotDbSqlite::create(
                 snapshot_path.as_path(),
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
                 open_snapshot_mpt,
-                epoch_height < SnapshotDbManagerSqlite::TARGET_EPOCH,
+                !use_new,
             )
         } else {
             let file_exists = snapshot_path.exists();
@@ -205,7 +263,7 @@ impl SnapshotDbManagerSqlite {
                     &open_snapshot_mpt,
                 )?;
 
-                if epoch_height >= SnapshotDbManagerSqlite::TARGET_EPOCH {
+                if use_new {
                     db.drop_mpt_table().unwrap();
                 }
 
@@ -223,8 +281,254 @@ impl SnapshotDbManagerSqlite {
         Ok(snapshot_db)
     }
 
+    fn open_mpt_snapshot_readonly(
+        &self, snapshot_path: PathBuf, try_open: bool,
+    ) -> Result<Option<Arc<RwLock<SnapshotMptDbSqlite>>>> {
+        if let Some(already_open) =
+            self.mpt_already_open_snapshots.read().get(&snapshot_path)
+        {
+            match already_open {
+                None => {
+                    // Already open for exclusive write
+                    return Ok(None);
+                }
+                Some(open_shared_weak) => {
+                    match Weak::upgrade(open_shared_weak) {
+                        None => {
+                            debug!(
+                                "new open_mpt_snapshot_readonly {:?}",
+                                snapshot_path
+                            );
+                        }
+                        Some(already_open) => {
+                            debug!(
+                                "already open_mpt_snapshot_readonly {:?}",
+                                snapshot_path
+                            );
+                            return Ok(Some(already_open));
+                        }
+                    }
+                }
+            }
+        }
+        let file_exists = snapshot_path.exists();
+        if file_exists {
+            let semaphore_permit = if try_open {
+                self.mpt_open_snapshot_semaphore
+                    .try_acquire()
+                    // Unfortunately we have to use map_error because the
+                    // TryAcquireError isn't public.
+                    .map_err(|_err| ErrorKind::SemaphoreTryAcquireError)?
+            } else {
+                executor::block_on(self.mpt_open_snapshot_semaphore.acquire())
+            };
+
+            // To serialize simultaneous opens.
+            let _open_lock = self.mpt_open_create_delete_lock.lock();
+            // If it's not in already_open_snapshots, the sqlite db must have
+            // been closed.
+            while let Some(already_open) =
+                self.mpt_already_open_snapshots.read().get(&snapshot_path)
+            {
+                match already_open {
+                    None => {
+                        // Already open for exclusive write
+                        return Ok(None);
+                    }
+                    Some(open_shared_weak) => {
+                        match Weak::upgrade(open_shared_weak) {
+                            None => {
+                                // All `Arc` of the sqlite db have been dropped,
+                                // but the inner
+                                // struct (sqlite db itself) drop is called
+                                // after decreasing
+                                // the strong_ref count, so it may still be open
+                                // at this time,
+                                // and after it's closed it will be removed from
+                                // `already_open_snapshots`.
+                                // Thus, here we wait for it to be removed to
+                                // ensure that when we try
+                                // to open it, it's guaranteed to be closed.
+                                thread::sleep(Duration::from_millis(5));
+                                continue;
+                            }
+                            Some(already_open) => {
+                                return Ok(Some(already_open));
+                            }
+                        }
+                    }
+                }
+            }
+
+            let snapshot_db = Arc::new(RwLock::new(SnapshotMptDbSqlite::open(
+                snapshot_path.as_path(),
+                /* readonly = */ true,
+                &self.mpt_already_open_snapshots,
+                &self.mpt_open_snapshot_semaphore,
+            )?));
+
+            semaphore_permit.forget();
+            self.mpt_already_open_snapshots.write().insert(
+                snapshot_path.into(),
+                Some(Arc::downgrade(&snapshot_db)),
+            );
+
+            return Ok(Some(snapshot_db));
+        } else {
+            return Ok(None);
+        }
+    }
+
+    // fn open_mpt_snapshot_write(
+    //     &self, snapshot_path: PathBuf, create: bool,
+    // ) -> Result<SnapshotMptDbSqlite> {
+    //     if self
+    //         .mpt_already_open_snapshots
+    //         .read()
+    //         .get(&snapshot_path)
+    //         .is_some()
+    //     {
+    //         bail!(ErrorKind::SnapshotAlreadyExists)
+    //     }
+
+    //     let semaphore_permit =
+    //         executor::block_on(self.mpt_open_snapshot_semaphore.acquire());
+    //     // When an open happens around the same time, we should make sure
+    // that     // the open returns None.
+    //     let mut _open_lock = self.open_create_delete_lock.lock();
+
+    //     // Simultaneous creation fails here.
+    //     if self
+    //         .mpt_already_open_snapshots
+    //         .read()
+    //         .get(&snapshot_path)
+    //         .is_some()
+    //     {
+    //         bail!(ErrorKind::SnapshotAlreadyExists)
+    //     }
+
+    //     let snapshot_db = if create {
+    //         SnapshotMptDbSqlite::create(
+    //             snapshot_path.as_path(),
+    //             &self.mpt_already_open_snapshots,
+    //             &self.mpt_open_snapshot_semaphore,
+    //         )
+    //     } else {
+    //         let file_exists = snapshot_path.exists();
+    //         if file_exists {
+    //             let mut db = SnapshotMptDbSqlite::open(
+    //                 snapshot_path.as_path(),
+    //                 /* readonly = */ false,
+    //                 &self.mpt_already_open_snapshots,
+    //                 &self.mpt_open_snapshot_semaphore,
+    //             )?;
+
+    //             Ok(db)
+    //         } else {
+    //             bail!(ErrorKind::SnapshotNotFound);
+    //         }
+    //     }?;
+
+    //     semaphore_permit.forget();
+    //     self.mpt_already_open_snapshots
+    //         .write()
+    //         .insert(snapshot_path.clone(), None);
+
+    //     Ok(snapshot_db)
+    // }
+
+    pub fn get_mpt_readonly(
+        &self, snapshot_epoch_id: &EpochId,
+    ) -> Arc<RwLock<SnapshotMptDbSqlite>> {
+        if self.use_isolated_db_for_mpt_table {
+            let p = Self::SNAPSHOT_DB_SQLITE_DIR_PREFIX.to_string()
+                + &snapshot_epoch_id.as_ref().to_hex::<String>();
+            let mpt_db_path = self.mpt_snapshot_path.join(&p);
+
+            let open_snapshot_mpt = if mpt_db_path.exists() {
+                let snapshot_mapt_db = self
+                    .open_mpt_snapshot_readonly(mpt_db_path, false)
+                    .unwrap()
+                    .unwrap();
+                snapshot_mapt_db
+            // Arc::new(RwLock::new(snapshot_mapt_db))
+            } else {
+                self.open_snapshot_mpt.as_ref().unwrap().clone()
+            };
+            open_snapshot_mpt
+        } else {
+            self.open_snapshot_mpt.as_ref().unwrap().clone()
+        }
+    }
+
+    // pub fn get_mpt_write(
+    //     &self, epoch_height: u64, snapshot_epoch_id: &EpochId,
+    // ) -> Arc<RwLock<SnapshotMptDbSqlite>> {
+    //     // if self.use_isolated_db_for_mpt_table {
+    //     //     let r = match self.use_isolated_db_for_mpt_table_height {
+    //     //         Some(v) => epoch_height >= v,
+    //     //         _ => true,
+    //     //     };
+
+    //     //     if r {
+    //     //         let x = Self::SNAPSHOT_DB_SQLITE_DIR_PREFIX.to_string()
+    //     //             + &snapshot_epoch_id.as_ref().to_hex::<String>();
+    //     //         let mpt_db_path = self.mpt_snapshot_path.join(&x);
+    //     //         let open_snapshot_mpt = if mpt_db_path.exists() {
+    //     //             let snapshot_mapt_db = self
+    //     //                 .open_mpt_snapshot_readonly(mpt_db_path, false)
+    //     //                 .unwrap()
+    //     //                 .unwrap();
+    //     //             snapshot_mapt_db
+    //     //         } else {
+    //     //             // let snapshot_mapt_db = SnapshotMptDbSqlite::create(
+    //     //             //     mpt_db_path.as_path(),
+    //     //             //     &self.mpt_already_open_snapshots,
+    //     //             //     &self.mpt_open_snapshot_semaphore,
+    //     //             // )
+    //     //             // .unwrap();
+    //     //             // Arc::new(RwLock::new(snapshot_mapt_db));
+
+    //     //             let snapshot_mapt_db = self
+    //     //                 .open_mpt_snapshot_write(mpt_db_path, true)
+    //     //                 .unwrap();
+    //     //             Arc::new(RwLock::new(snapshot_mapt_db))
+    //     //         };
+    //     //         open_snapshot_mpt
+    //     //     } else {
+    //     //         self.open_snapshot_mpt.as_ref().unwrap().clone()
+    //     //     }
+    //     // } else {
+    //     //     self.open_snapshot_mpt.as_ref().unwrap().clone()
+    //     // }
+    //     self.open_snapshot_mpt.as_ref().unwrap().clone()
+    // }
+
     pub fn on_close(
         already_open_snapshots: &AlreadyOpenSnapshots<SnapshotDbSqlite>,
+        open_semaphore: &Arc<Semaphore>, path: &Path, remove_on_close: bool,
+    )
+    {
+        // Destroy at close.
+        if remove_on_close {
+            // When removal fails, we can not raise the error because this
+            // function is called within a destructor.
+            //
+            // It's fine to just ignore the error because Conflux doesn't remove
+            // then immediate create a snapshot, or open the snapshot for
+            // modification.
+            //
+            // Conflux will remove orphan storage upon restart.
+            Self::fs_remove_snapshot(path);
+        }
+        already_open_snapshots.write().remove(path);
+        open_semaphore.add_permits(1);
+    }
+
+    pub fn on_close1(
+        already_open_snapshots: &AlreadyOpenSnapshots<
+            RwLock<SnapshotMptDbSqlite>,
+        >,
         open_semaphore: &Arc<Semaphore>, path: &Path, remove_on_close: bool,
     )
     {
@@ -389,6 +693,7 @@ impl SnapshotDbManagerSqlite {
             self,
             snapshot_path,
             /* try_open = */ false,
+            old_snapshot_epoch_id,
         )?;
         let old_snapshot_db = maybe_old_snapshot_db
             .ok_or(Error::from(ErrorKind::SnapshotNotFound))?;
@@ -476,16 +781,25 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
 
         let mut snapshot_db;
         let mut cow = false;
-        let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
 
         let new_snapshot_root = if *old_snapshot_epoch_id == NULL_EPOCH {
+            let use_new = if self.use_isolated_db_for_mpt_table {
+                match self.use_isolated_db_for_mpt_table_height {
+                    Some(v) => new_epoch_height >= v,
+                    _ => true,
+                }
+            } else {
+                false
+            };
+
+            let open_snapshot_mpt = self.open_snapshot_mpt.as_ref().unwrap();
             // direct merge the first snapshot
             snapshot_db = Self::SnapshotDb::create(
                 temp_db_path.as_path(),
                 &self.already_open_snapshots,
                 &self.open_snapshot_semaphore,
                 open_snapshot_mpt,
-                new_epoch_height < SnapshotDbManagerSqlite::TARGET_EPOCH,
+                !use_new,
             )?;
             snapshot_db.dump_delta_mpt(&delta_mpt)?;
             snapshot_db.direct_merge(None)?
@@ -518,6 +832,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                     self,
                     snapshot_path,
                     /* try_open = */ false,
+                    old_snapshot_epoch_id,
                 )?;
                 let old_snapshot_db = maybe_old_snapshot_db
                     .ok_or(Error::from(ErrorKind::SnapshotNotFound))?;
@@ -533,6 +848,42 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                 self.copy_and_merge(&mut snapshot_db, old_snapshot_epoch_id)?
             }
         };
+
+        let use_new = if self.use_isolated_db_for_mpt_table {
+            match self.use_isolated_db_for_mpt_table_height {
+                Some(v) => new_epoch_height >= v,
+                _ => true,
+            }
+        } else {
+            false
+        };
+
+        if use_new && new_epoch_height % self.era_epoch_count == 0 {
+            debug!(
+                "new_epoch_height {}, era_epoch_count {}",
+                new_epoch_height, self.era_epoch_count
+            );
+            let temp_db_path = self.mpt_snapshot_path.join(
+                Self::SNAPSHOT_DB_SQLITE_DIR_PREFIX.to_string()
+                    + "merge_temp_"
+                    + &snapshot_epoch_id.as_ref().to_hex::<String>(),
+            );
+            let latest_db_path =
+                self.mpt_snapshot_path.join(Self::SNAPSHOT_MPT_LATEST_DIR);
+
+            let r = self.try_copy_snapshot(
+                latest_db_path.as_path(),
+                temp_db_path.as_path(),
+            );
+
+            let p = self.mpt_snapshot_path.join(
+                Self::SNAPSHOT_DB_SQLITE_DIR_PREFIX.to_string()
+                    + &snapshot_epoch_id.as_ref().to_hex::<String>(),
+            );
+
+            Self::rename_snapshot_db(&temp_db_path, &p)?;
+        }
+
         in_progress_snapshot_info.merkle_root = new_snapshot_root.clone();
         drop(snapshot_db);
         let locked = snapshot_info_map_rwlock.write();
@@ -558,7 +909,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
             return Ok(Some(Arc::new(Self::SnapshotDb::get_null_snapshot())));
         } else {
             let path = self.get_snapshot_db_path(snapshot_epoch_id);
-            self.open_snapshot_readonly(path, try_open)
+            self.open_snapshot_readonly(path, try_open, snapshot_epoch_id)
         }
     }
 
@@ -596,6 +947,7 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
         match maybe_snapshot {
             None => {
                 if snapshot_epoch_id.ne(&NULL_EPOCH) {
+                    debug!("destroy_snapshot::fs_remove_snapshot");
                     Self::fs_remove_snapshot(&path);
                 }
             }
@@ -603,6 +955,56 @@ impl SnapshotDbManagerTrait for SnapshotDbManagerSqlite {
                 snapshot.set_remove_on_last_close();
             }
         };
+
+        {
+            let path = self.mpt_snapshot_path.join(
+                Self::SNAPSHOT_DB_SQLITE_DIR_PREFIX.to_string()
+                    + &snapshot_epoch_id.as_ref().to_hex::<String>(),
+            );
+
+            let maybe_snapshot = loop {
+                match self.mpt_already_open_snapshots.read().get(&path) {
+                    Some(Some(snapshot)) => {
+                        match Weak::upgrade(snapshot) {
+                            None => {
+                                // This is transient and we wait for the db to
+                                // be
+                                // fully closed.
+                                // The assumption is the same as in
+                                // `open_snapshot_readonly`.
+                                thread::sleep(Duration::from_millis(5));
+                                continue;
+                            }
+                            Some(snapshot) => break Some(snapshot),
+                        }
+                    }
+                    Some(None) => {
+                        // This should not happen because Conflux always write
+                        // on a snapshot db under a
+                        // temporary name. All completed
+                        // snapshots are readonly.
+                        if cfg!(debug_assertions) {
+                            unreachable!("Try to destroy a snapshot being open exclusively for write.")
+                        } else {
+                            unsafe { unreachable_unchecked() }
+                        }
+                    }
+                    None => break None,
+                };
+            };
+
+            match maybe_snapshot {
+                None => {
+                    if snapshot_epoch_id.ne(&NULL_EPOCH) {
+                        debug!("destroy_snapshot::fs_remove_snapshot");
+                        Self::fs_remove_snapshot(&path);
+                    }
+                }
+                Some(snapshot) => {
+                    snapshot.read().set_remove_on_last_close();
+                }
+            };
+        }
 
         Ok(())
     }
