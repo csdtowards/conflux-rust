@@ -12,7 +12,7 @@ pub fn open_snapshot_db_for_testing(
 
     let p =
         Path::new("/home/ubuntu/mnt/blockchain_data/storage_db/snapshot/mpt");
-    let r = SnapshotMptDbSqlite::create(p).unwrap();
+    let r = SnapshotMptDbSqlite::create(p, &Default::default(),&Arc::new(Semaphore::new(DEFAULT_MAX_OPEN_SNAPSHOTS as usize)),).unwrap();
     let x = Arc::new(RwLock::new(r));
 
     SnapshotDbSqlite::open(
