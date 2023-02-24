@@ -77,7 +77,8 @@ impl KvdbSqliteStatements {
     pub const RANGE_SELECT_STATEMENT_TILL_END: &'static str =
         "SELECT key {comma_value_columns} FROM {table_name} \
          WHERE key >= :lower_bound_incl ORDER BY key ASC";
-    pub const SELECT_TBL_NAME: &'static str =  "SELECT tbl_name FROM sqlite_master WHERE tbl_name = \"{table_name}\" AND type = \"table\"";
+    pub const SELECT_TBL_NAME: &'static str =
+        "SELECT tbl_name FROM sqlite_master WHERE tbl_name = \"{table_name}\" AND type = \"table\"";
     pub const VACUUM: &'static str = "vacuum";
 
     pub fn make_statements(
@@ -323,8 +324,8 @@ impl<ValueType> KvdbSqlite<ValueType> {
     pub fn check_if_table_exist(
         connection: &mut SqliteConnection, statements: &KvdbSqliteStatements,
     ) -> Result<bool> {
-        // Create the extra table for bytes key when the main table has
-        // number key.
+        // Maybe extra bytes table.
+
         if statements.stmts_main_table.select_tbl_name
             != statements.stmts_bytes_key_table.select_tbl_name
         {
@@ -340,9 +341,7 @@ impl<ValueType> KvdbSqlite<ValueType> {
             }
         }
 
-        // Main table. When with_number_key_table is true it's the
-        // number key table. Otherwise it's the bytes
-        // key table.
+        // Main table.
         if let Some(_) = connection
             .execute(
                 &statements.stmts_main_table.select_tbl_name,

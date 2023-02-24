@@ -11,8 +11,8 @@ pub struct SnapshotDbSqlite {
     open_semaphore: Arc<Semaphore>,
     path: PathBuf,
     remove_on_close: AtomicBool,
-    open_snapshot_mpt: Option<Arc<RwLock<SnapshotMptDbSqlite>>>,
-    mpt_table_kv_table_in_same_db: bool,
+    mpt_snapshot: Option<Arc<RwLock<SnapshotMptDbSqlite>>>,
+    mpt_table_in_current_db: bool,
 }
 
 pub struct SnapshotDbStatements {
@@ -199,7 +199,7 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
     fn open_snapshot_mpt_owned(
         &'db mut self,
     ) -> Result<Self::SnapshotDbBorrowMutType> {
-        if self.mpt_table_kv_table_in_same_db {
+        if self.mpt_table_in_current_db {
             debug!("open_snapshot_mpt_owned old version");
             Ok(SnapshotMpt::new(unsafe {
                 std::mem::transmute(KvdbSqliteShardedBorrowMut::<
@@ -211,7 +211,7 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
             })?)
         } else {
             debug!("open_snapshot_mpt_owned new version");
-            self.open_snapshot_mpt
+            self.mpt_snapshot
                 .as_ref()
                 .unwrap()
                 .write()
@@ -222,7 +222,7 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
     fn open_snapshot_mpt_as_owned(
         &'db self,
     ) -> Result<Self::SnapshotDbAsOwnedType> {
-        if self.mpt_table_kv_table_in_same_db {
+        if self.mpt_table_in_current_db {
             debug!("open_snapshot_mpt_as_owned old version");
             Ok(SnapshotMpt::new(
                 KvdbSqliteSharded::<SnapshotMptDbValue>::new(
@@ -232,7 +232,7 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
             )?)
         } else {
             debug!("open_snapshot_mpt_as_owned new version");
-            self.open_snapshot_mpt
+            self.mpt_snapshot
                 .as_ref()
                 .unwrap()
                 .read()
@@ -243,7 +243,7 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
     fn open_snapshot_mpt_shared(
         &'db self,
     ) -> Result<Self::SnapshotDbBorrowSharedType> {
-        if self.mpt_table_kv_table_in_same_db {
+        if self.mpt_table_in_current_db {
             debug!("open_snapshot_mpt_as_owned old version");
             Ok(SnapshotMpt::new(unsafe {
                 std::mem::transmute(KvdbSqliteShardedBorrowShared::<
@@ -255,7 +255,7 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotDbSqlite {
             })?)
         } else {
             debug!("open_snapshot_mpt_shared new version");
-            self.open_snapshot_mpt
+            self.mpt_snapshot
                 .as_ref()
                 .unwrap()
                 .read()
@@ -276,8 +276,8 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
             open_semaphore: Arc::new(Semaphore::new(0)),
             path: Default::default(),
             remove_on_close: Default::default(),
-            open_snapshot_mpt: None,
-            mpt_table_kv_table_in_same_db: true,
+            mpt_snapshot: None,
+            mpt_table_in_current_db: true,
         }
     }
 
@@ -285,7 +285,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         snapshot_path: &Path, readonly: bool,
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_semaphore: &Arc<Semaphore>,
-        open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
+        mpt_snapshot: &Arc<RwLock<SnapshotMptDbSqlite>>,
     ) -> Result<SnapshotDbSqlite>
     {
         let kvdb_sqlite_sharded = KvdbSqliteSharded::<Box<[u8]>>::open(
@@ -308,8 +308,8 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
             open_semaphore: open_semaphore.clone(),
             path: snapshot_path.to_path_buf(),
             remove_on_close: Default::default(),
-            open_snapshot_mpt: Some(open_snapshot_mpt.clone()),
-            mpt_table_kv_table_in_same_db: mpt_table_exist,
+            mpt_snapshot: Some(mpt_snapshot.clone()),
+            mpt_table_in_current_db: mpt_table_exist,
         })
     }
 
@@ -317,8 +317,8 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         snapshot_path: &Path,
         already_open_snapshots: &AlreadyOpenSnapshots<Self>,
         open_snapshots_semaphore: &Arc<Semaphore>,
-        open_snapshot_mpt: &Arc<RwLock<SnapshotMptDbSqlite>>,
-        mpt_table_kv_table_in_same_db: bool,
+        mpt_snapshot: &Arc<RwLock<SnapshotMptDbSqlite>>,
+        mpt_table_in_current_db: bool,
     ) -> Result<SnapshotDbSqlite>
     {
         fs::create_dir_all(snapshot_path)?;
@@ -335,7 +335,7 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 // Safe to unwrap since the connections are newly created.
                 kvdb_sqlite_sharded.into_connections().unwrap();
             // Create Snapshot MPT table.
-            if mpt_table_kv_table_in_same_db {
+            if mpt_table_in_current_db {
                 KvdbSqliteSharded::<Self::ValueType>::create_table(
                     &mut connections,
                     &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
@@ -354,8 +354,8 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
                 open_semaphore: open_snapshots_semaphore.clone(),
                 path: snapshot_path.to_path_buf(),
                 remove_on_close: Default::default(),
-                open_snapshot_mpt: Some(open_snapshot_mpt.clone()),
-                mpt_table_kv_table_in_same_db,
+                mpt_snapshot: Some(mpt_snapshot.clone()),
+                mpt_table_in_current_db,
             }),
         }
     }
@@ -377,11 +377,11 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         let mut base_mpt;
 
         let mut mpt_merger = match old_snapshot_db {
-            Some(db) => {
-                if !self.mpt_table_kv_table_in_same_db()
-                    && db.mpt_table_kv_table_in_same_db()
+            Some(old_db) => {
+                if !self.is_mpt_table_in_current_db()
+                    && old_db.is_mpt_table_in_current_db()
                 {
-                    base_mpt = db.open_snapshot_mpt_as_owned()?;
+                    base_mpt = old_db.open_snapshot_mpt_as_owned()?;
                     MptMerger::new(
                         Some(
                             &mut base_mpt
@@ -443,7 +443,6 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
         }
 
         self.commit_transaction()?;
-        println!("======================");
         self.apply_update_to_kvdb()?;
 
         let mut set_keys_iter = self.dumped_delta_kv_set_keys_iterator()?;
@@ -451,10 +450,10 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
             self.dumped_delta_kv_delete_keys_iterator()?;
         self.start_transaction()?;
         // TODO: what about multi-threading node load?
-        let mut base_mpt = old_snapshot_db.open_snapshot_mpt_as_owned()?;
+        let mut base_mpt;
         let mut save_as_mpt = self.open_snapshot_mpt_owned()?;
-        let mut mpt_merger = if old_snapshot_db.mpt_table_kv_table_in_same_db()
-        {
+        let mut mpt_merger = if old_snapshot_db.is_mpt_table_in_current_db() {
+            base_mpt = old_snapshot_db.open_snapshot_mpt_as_owned()?;
             MptMerger::new(
                 Some(&mut base_mpt as &mut dyn SnapshotMptTraitReadAndIterate),
                 &mut save_as_mpt as &mut dyn SnapshotMptTraitRw,
@@ -481,8 +480,8 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
             }
         }
 
-        if !self.mpt_table_kv_table_in_same_db {
-            self.open_snapshot_mpt
+        if !self.mpt_table_in_current_db {
+            self.mpt_snapshot
                 .as_ref()
                 .unwrap()
                 .write()
@@ -493,18 +492,18 @@ impl SnapshotDbTrait for SnapshotDbSqlite {
     }
 
     fn commit_transaction(&mut self) -> Result<()> {
-        if let Some(connections) = self.maybe_db_connections.as_mut() {
-            for connection in connections.iter_mut() {
-                connection.execute("COMMIT", SQLITE_NO_PARAM)?;
-            }
-        }
-
-        if !self.mpt_table_kv_table_in_same_db {
-            self.open_snapshot_mpt
+        if !self.mpt_table_in_current_db {
+            self.mpt_snapshot
                 .as_ref()
                 .unwrap()
                 .write()
                 .commit_transaction()?;
+        }
+
+        if let Some(connections) = self.maybe_db_connections.as_mut() {
+            for connection in connections.iter_mut() {
+                connection.execute("COMMIT", SQLITE_NO_PARAM)?;
+            }
         }
 
         Ok(())
@@ -633,16 +632,20 @@ impl SnapshotDbSqlite {
     }
 
     pub fn drop_mpt_table(&mut self) -> Result<()> {
-        let connections = self.maybe_db_connections.as_mut().unwrap();
-        KvdbSqliteSharded::<()>::drop_table(
-            connections,
-            &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
-        )?;
-        self.mpt_table_kv_table_in_same_db = false;
-        KvdbSqliteSharded::<()>::vacumm_db(
-            connections,
-            &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
-        )
+        if self.mpt_table_in_current_db {
+            let connections = self.maybe_db_connections.as_mut().unwrap();
+            KvdbSqliteSharded::<()>::drop_table(
+                connections,
+                &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
+            )?;
+            self.mpt_table_in_current_db = false;
+            KvdbSqliteSharded::<()>::vacumm_db(
+                connections,
+                &SNAPSHOT_MPT_DB_STATEMENTS.mpt_statements,
+            )
+        } else {
+            Ok(())
+        }
     }
 
     fn apply_update_to_kvdb(&mut self) -> Result<()> {
@@ -675,8 +678,8 @@ impl SnapshotDbSqlite {
         Ok(())
     }
 
-    fn mpt_table_kv_table_in_same_db(&self) -> bool {
-        self.mpt_table_kv_table_in_same_db
+    fn is_mpt_table_in_current_db(&self) -> bool {
+        self.mpt_table_in_current_db
     }
 }
 

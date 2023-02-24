@@ -3,7 +3,6 @@
 // See http://www.gnu.org/licenses/
 
 pub struct SnapshotMptDbSqlite {
-    // Option because we need an empty snapshot db for empty snapshot.
     maybe_db_connections: Option<Box<[SqliteConnection]>>,
     already_open_snapshots: AlreadyOpenSnapshots<RwLock<Self>>,
     open_semaphore: Arc<Semaphore>,
@@ -33,10 +32,15 @@ lazy_static! {
 
 impl Drop for SnapshotMptDbSqlite {
     fn drop(&mut self) {
-        debug!("drop SnapshotMptDbSqlite");
-        if !self.path.as_os_str().is_empty() {
+        if !self.path.as_os_str().is_empty()
+            && !self
+                .path
+                .ends_with(SnapshotDbManagerSqlite::LATEST_MPT_SNAPSHOT_DIR)
+        {
+            debug!("drop SnapshotMptDbSqlite {:?}", self.path);
+
             self.maybe_db_connections.take();
-            SnapshotDbManagerSqlite::on_close1(
+            SnapshotDbManagerSqlite::on_close_mpt_snapshot(
                 &self.already_open_snapshots,
                 &self.open_semaphore,
                 &self.path,
@@ -48,23 +52,6 @@ impl Drop for SnapshotMptDbSqlite {
 
 impl SnapshotMptDbSqlite {
     pub const DB_SHARDS: u16 = 32;
-    /// These two tables are temporary table for the merging process, but they
-    /// remain to help other nodes to do 1-step syncing.
-
-    // FIXME: Archive node will have different db schema to support versioned
-    // FIXME: read and to provide incremental syncing.
-    // FIXME:
-    // FIXME: for archive mode, the delete table may live in its own db file
-    // FIXME: which contains delete table for a version range.
-    // FIXME: model this fact and refactor.
-    /*
-    pub const KVV_PUT_STATEMENT: &'static str =
-        "INSERT OR REPLACE INTO :table_name VALUES (:key, :value, :version)";
-    /// Key is not unique, because the same key can appear with different
-    /// version number.
-    pub const SNAPSHOT_KV_DELETE_TABLE_NAME: &'static str =
-        "snapshot_key_value_delete";
-    */
     /// MPT Table.
     pub const SNAPSHOT_MPT_TABLE_NAME: &'static str = "snapshot_mpt";
 }
@@ -141,10 +128,6 @@ impl<'db> OpenSnapshotMptTrait<'db> for SnapshotMptDbSqlite {
 }
 
 impl SnapshotMptDbSqlite {
-    // FIXME: Do not clone connections.
-    // FIXME: 1. we shouldn't not clone connections without acquire the
-    // FIXME: semaphore; 2. we should implement the range iter for
-    // FIXME: shared reading connections.
     fn try_clone_connections(&self) -> Result<Option<Box<[SqliteConnection]>>> {
         match &self.maybe_db_connections {
             None => Ok(None),
@@ -197,14 +180,8 @@ impl SnapshotMptDbSqlite {
                     /* create_table = */ true,
                     /* unsafe_mode = */ true,
                 )?;
-            let connections =
-                // Safe to unwrap since the connections are newly created.
-                kvdb_sqlite_sharded.into_connections().unwrap();
-            // Create Snapshot MPT table.
-            // KvdbSqliteSharded::<Self::ValueType>::create_table(
-            //     &mut connections,
-            //     &SNAPSHOT_DB_STATEMENTS.mpt_statements,
-            // )?;
+            let connections = kvdb_sqlite_sharded.into_connections().unwrap();
+
             Ok(connections)
         })();
         match create_result {
