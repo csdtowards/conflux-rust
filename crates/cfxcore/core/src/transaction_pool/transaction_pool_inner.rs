@@ -200,6 +200,7 @@ impl DeferredPool {
                 }
 
                 let tx_size = tx.rlp_size();
+                info!("tx rlp size: {:?}", tx_size);
                 if tx_size > rest_size_limit {
                     if tx_size >= minimum_unit_tx_size {
                         minimum_unit_tx_size += minimum_unit_tx_size >> 4;
