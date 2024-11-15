@@ -229,6 +229,7 @@ impl DeferredPool {
 
         let gas_used = block_gas_limit - rest_gas_limit;
         let size_used = block_size_limit - rest_size_limit;
+        info!("block_gas_limit: {:?}, rest_gas_limit: {:?}, block_size_limit: {:?}, rest_size_limit: {:?}", block_gas_limit, rest_gas_limit, block_size_limit, rest_size_limit);
         (to_pack_txs, gas_used, size_used)
     }
 
@@ -1072,6 +1073,11 @@ impl TransactionPoolInner {
         if num_txs == 0 {
             return packed_transactions;
         }
+
+        debug!(
+            "block_gas_limit {:?}, evm_gas_limit {:?}",
+            block_gas_limit, evm_gas_limit
+        );
 
         let spec = machine.spec(best_block_number, best_epoch_height);
         let transitions = &machine.params().transition_heights;

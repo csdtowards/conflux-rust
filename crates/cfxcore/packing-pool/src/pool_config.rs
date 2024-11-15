@@ -1,5 +1,6 @@
 use cfx_math::nth_inv_root;
 use cfx_types::U256;
+use log::error;
 use typenum::{U12, U15, U2, U3, U4, U5};
 
 use crate::transaction::PackingPoolTransaction;
@@ -61,6 +62,7 @@ impl PackingPoolConfig {
         let mut total_gas_limit = U256::zero();
         for (idx, tx) in txs.iter().enumerate() {
             if idx >= self.address_tx_count {
+                error!("error max_packing_batch_size check_acceptable_batch");
                 return (idx, total_gas_limit);
             }
 
@@ -69,6 +71,9 @@ impl PackingPoolConfig {
                 .map_or(tx.gas_limit(), |(r, _)| r.gas_limit());
 
             if total_gas_limit + tx_gas > self.address_gas_limit {
+                error!(
+                    "error max_packing_batch_gas_limit check_acceptable_batch"
+                );
                 if idx == 0 {
                     // If there is only one tx, it can exceed address_gas_limit
                     return (1, tx_gas);

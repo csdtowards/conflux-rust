@@ -1,4 +1,5 @@
 use cfx_types::U256;
+use log::error;
 use rand::RngCore;
 use treap_map::{ApplyOpOutcome, Node};
 
@@ -128,6 +129,7 @@ impl<TX: PackingPoolTransaction> PackingBatch<TX> {
         if tx.nonce() == start_nonce + n_txs {
             // Append tx
             if n_txs >= config.address_tx_count {
+                error!("error max_packing_batch_size insert");
                 return (vec![], Err(ExceedAddrTxCount));
             }
 
@@ -137,6 +139,7 @@ impl<TX: PackingPoolTransaction> PackingBatch<TX> {
             if config.address_gas_limit
                 < self.total_gas_limit.saturating_add(tx.gas_limit())
             {
+                error!("error max_packing_batch_gas_limit insert");
                 return (vec![], Err(ExceedAddrGasLimit));
             }
 

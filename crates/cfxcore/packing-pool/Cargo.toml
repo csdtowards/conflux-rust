@@ -16,6 +16,7 @@ malloc_size_of_derive = { workspace = true }
 rand_xorshift = "0.2"
 typenum = "1.17.0"
 rand = "0.7"
+log = { workspace = true }
 
 [dev-dependencies]
 treap-map = { workspace = true, features = ["testonly_code"] }
