@@ -926,7 +926,7 @@ impl Decodable for SignedTransaction {
         Ok(SignedTransaction {
             transaction: rlp.val_at(0)?,
             sender: rlp.val_at(1)?,
-            public: rlp.val_at(2)?,
+            public: None,
         })
     }
 }
@@ -962,7 +962,7 @@ impl SignedTransaction {
             SignedTransaction {
                 transaction,
                 sender,
-                public: Some(public),
+                public: None,
             }
         }
     }
