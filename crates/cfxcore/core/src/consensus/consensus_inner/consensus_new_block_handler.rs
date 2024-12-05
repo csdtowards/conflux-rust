@@ -1744,6 +1744,11 @@ impl ConsensusNewBlockHandler {
             "insert new block into consensus: header_only={:?} block={:?}",
             inner.header_only, &block_header
         );
+        block_event_record::record_event(
+            &hash,
+            block_event_record::Event::ConGraph,
+        );
+
         let parent_hash = block_header.parent_hash();
         let parent_index = inner.hash_to_arena_indices.get(&parent_hash);
         let me = if parent_index.is_none()
@@ -1871,6 +1876,10 @@ impl ConsensusNewBlockHandler {
                 inner.arena[me].data.inactive_dependency_cnt
             );
         }
+        block_event_record::record_event(
+            &hash,
+            block_event_record::Event::ConGraphDone,
+        );
     }
 
     fn persist_block_info(

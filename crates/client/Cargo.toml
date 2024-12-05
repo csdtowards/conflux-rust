@@ -115,6 +115,8 @@ cfx-rpc-utils = { workspace = true }
 cfx-rpc-builder = { workspace = true }
 jsonrpsee = { workspace = true }
 
+block-event-record = { workspace = true }
+
 [dev-dependencies]
 criterion = "0.3"
 cfx-parameters = { workspace = true }

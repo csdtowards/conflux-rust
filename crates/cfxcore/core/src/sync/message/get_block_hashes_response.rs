@@ -43,7 +43,9 @@ impl Handleable for GetBlockHashesResponse {
             .iter()
             .filter(|h| !ctx.manager.graph.contains_block_header(&h))
             .cloned()
-            .collect();
+            .collect::<Vec<_>>();
+
+        block_event_record::new_received_block_hashes(&missing_headers);
 
         // NOTE: this is to make sure no section of the DAG is skipped
         // e.g. if the request for epoch 4 is lost or the reply is in-

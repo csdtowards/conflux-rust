@@ -106,6 +106,11 @@ impl Handleable for GetBlockHeadersResponse {
                 .select(&ctx.manager.syn)
         };
 
+        block_event_record::record_event_for_blocks(
+            self.headers.iter().map(|h| h.hash()),
+            block_event_record::Event::HeaderReady,
+        );
+
         // re-request headers requested but not received
         let requested: HashSet<H256> = req.hashes.iter().cloned().collect();
         self.handle_block_headers(

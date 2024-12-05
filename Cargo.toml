@@ -29,6 +29,7 @@ members = [
     "crates/dbs/storage",
     "crates/cfxcore/vm-interpreter",
     "crates/cfxcore/vm-types",
+    "crates/util/block-event-record",
     "crates/util/cfx_math",
     "crates/util/cfx-vm-tracer-derive",
     "crates/util/dag",
@@ -152,6 +153,7 @@ cfx-util-macros = { path = "./crates/util/util-macros" }
 cfx-rpc = { path = "./crates/rpc/rpc" }
 cfx-rpc-utils = { path = "./crates/rpc/rpc-utils" }
 cfx-rpc-builder = { path = "./crates/rpc/rpc-builder" }
+block-event-record = { path = "./crates/util/block-event-record" }
 
 # proc-macros
 proc-macro2 = "1.0"

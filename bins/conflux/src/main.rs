@@ -114,6 +114,7 @@ fn main() -> Result<(), String> {
                 "client",
                 "primitives",
                 "io",
+                "block_event_record",
             ]
             .iter()
             {

@@ -1027,6 +1027,13 @@ impl ConsensusExecutionHandler {
             return;
         }
 
+        if on_local_pivot {
+            block_event_record::record_event(
+                &epoch_hash,
+                block_event_record::Event::ComputeEpoch,
+            );
+        }
+
         // Get blocks in this epoch after skip checking
         let epoch_blocks = self
             .data_man
@@ -1090,6 +1097,10 @@ impl ConsensusExecutionHandler {
             .expect(&concat!(file!(), ":", line!(), ":", column!()));
 
         if on_local_pivot {
+            block_event_record::record_event(
+                &epoch_hash,
+                block_event_record::Event::NotifyTxPool,
+            );
             self.notify_txpool(&commit_result, epoch_hash);
         };
 
@@ -1215,10 +1226,15 @@ impl ConsensusExecutionHandler {
 
             // TODO: use channel to deliver the message.
             let txpool_clone = self.tx_pool.clone();
+            let epoch_hash = *epoch_hash;
             std::thread::Builder::new()
                 .name("txpool_update_state".into())
                 .spawn(move || {
                     txpool_clone.notify_modified_accounts(accounts_for_txpool);
+                    block_event_record::record_event(
+                        &epoch_hash,
+                        block_event_record::Event::TxPoolUpdated,
+                    );
                 })
                 .expect("can not notify tx pool to start state");
         }

@@ -1767,6 +1767,11 @@ impl SynchronizationGraph {
 
         debug!("insert_block {:?}", hash);
 
+        block_event_record::record_event(
+            &hash,
+            block_event_record::Event::BodyReady,
+        );
+
         let inner = &mut *self.inner.write();
 
         let contains_block =
@@ -1868,6 +1873,11 @@ impl SynchronizationGraph {
             block.block_header,
             block.transactions.len(),
             block.size(),
+        );
+
+        block_event_record::record_event(
+            &hash,
+            block_event_record::Event::SyncGraph,
         );
 
         // Note: If `me` is invalid, it has been removed from `arena` now,

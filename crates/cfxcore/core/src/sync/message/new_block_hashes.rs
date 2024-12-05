@@ -45,6 +45,8 @@ impl Handleable for NewBlockHashes {
             return Ok(());
         }
 
+        block_event_record::new_received_block_hashes(&self.block_hashes);
+
         let headers_to_request = self
             .block_hashes
             .iter()

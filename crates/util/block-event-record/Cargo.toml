@@ -1,0 +1,12 @@
+[package]
+name = "block-event-record"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cfx-types = { workspace = true }
+lru_time_cache = "0.11"
+parking_lot = { workspace = true }
+log = { workspace = true }
+lazy_static = { workspace = true }
+chrono = { workspace = true }
