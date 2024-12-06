@@ -69,7 +69,7 @@ impl BlockRecord {
     fn is_complete(&self) -> bool { self.time_ticks.len() == 8 }
 
     fn is_complete_for_non_pivot(&self) -> bool {
-        self.time_ticks.range(..Event::ConGraphDone).count() == 5
+        self.time_ticks.range(..=Event::ConGraphDone).count() == 5
     }
 }
 
