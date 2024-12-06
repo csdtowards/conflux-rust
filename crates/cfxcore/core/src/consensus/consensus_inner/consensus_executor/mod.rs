@@ -1034,6 +1034,18 @@ impl ConsensusExecutionHandler {
             );
         }
 
+        let mark = |stage| {
+            if on_local_pivot {
+                block_event_record::record_custom_event(
+                    &epoch_hash,
+                    "compute",
+                    stage,
+                );
+            }
+        };
+
+        mark(0);
+
         // Get blocks in this epoch after skip checking
         let epoch_blocks = self
             .data_man
@@ -1054,6 +1066,8 @@ impl ConsensusExecutionHandler {
             .new_state(pivot_block, recover_mpt_during_construct_pivot_state)
             .expect("Cannot init state");
 
+        mark(1);
+
         let epoch_receipts = self
             .process_epoch_transactions(
                 &mut state,
@@ -1065,6 +1079,8 @@ impl ConsensusExecutionHandler {
             // TODO: maybe propagate the error all the way up so that the
             // program may restart by itself.
             .expect("Can not handle db error in consensus, crashing.");
+
+        mark(2);
 
         let current_block_number =
             start_block_number + epoch_receipts.len() as u64 - 1;
@@ -1085,6 +1101,8 @@ impl ConsensusExecutionHandler {
             );
         }
 
+        mark(3);
+
         self.process_pos_interest(
             &mut state,
             pivot_block,
@@ -1092,9 +1110,13 @@ impl ConsensusExecutionHandler {
         )
         .expect("db error");
 
+        mark(4);
+
         let commit_result = state
             .commit(*epoch_hash, debug_record.as_deref_mut())
             .expect(&concat!(file!(), ":", line!(), ":", column!()));
+
+        mark(5);
 
         if on_local_pivot {
             block_event_record::record_event(

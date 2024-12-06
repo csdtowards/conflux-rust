@@ -24,3 +24,14 @@ impl Event {
         }
     }
 }
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+pub(crate) struct CustomEvent(&'static str, usize);
+
+impl CustomEvent {
+    pub fn new(name: &'static str, stage: usize) -> Self {
+        CustomEvent(name, stage)
+    }
+
+    pub fn key(&self) -> String { format!("custom_{}_{}", self.0, self.1) }
+}

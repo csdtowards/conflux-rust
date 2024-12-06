@@ -1,3 +1,5 @@
+use crate::event::CustomEvent;
+
 use super::event::Event;
 
 use cfx_types::H256;
@@ -11,7 +13,8 @@ use std::{
 pub(crate) struct BlockRecord {
     hash_ready_instant: Instant,
     hash_ready_time: SystemTime,
-    time_ticks: BTreeMap<Event, u64>,
+    event_ticks: BTreeMap<Event, u64>,
+    custom_event_ticks: BTreeMap<CustomEvent, u64>,
 }
 
 impl BlockRecord {
@@ -21,22 +24,36 @@ impl BlockRecord {
         Self {
             hash_ready_time,
             hash_ready_instant,
-            time_ticks: BTreeMap::new(),
+            event_ticks: BTreeMap::new(),
+            custom_event_ticks: BTreeMap::new(),
         }
     }
 
     pub(crate) fn new_mined_block() -> Self {
         use Event::{BodyReady, HeaderReady};
         let mut record = Self::new_received_block();
-        record.time_ticks.insert(HeaderReady, 0);
-        record.time_ticks.insert(BodyReady, 0);
+        record.event_ticks.insert(HeaderReady, 0);
+        record.event_ticks.insert(BodyReady, 0);
         record
     }
 
     pub(crate) fn record_event(&mut self, event: Event) -> bool {
-        self.time_ticks.entry(event).or_insert_with(|| {
+        self.event_ticks.entry(event).or_insert_with(|| {
             self.hash_ready_instant.elapsed().as_nanos() as u64
         });
+
+        self.is_complete()
+    }
+
+    pub(crate) fn record_custom_event(
+        &mut self, name: &'static str, stage: usize,
+    ) -> bool {
+        let custom_event = CustomEvent::new(name, stage);
+        self.custom_event_ticks
+            .entry(custom_event)
+            .or_insert_with(|| {
+                self.hash_ready_instant.elapsed().as_nanos() as u64
+            });
 
         self.is_complete()
     }
@@ -50,10 +67,13 @@ impl BlockRecord {
             dict_item("start_timestamp", start_time),
         ];
         result.extend(
-            self.time_ticks
+            self.event_ticks
                 .iter()
                 .map(|(event, value)| dict_item(event.key(), value)),
         );
+        result.extend(self.custom_event_ticks.iter().map(
+            |(custom_event, value)| dict_item(&custom_event.key(), value),
+        ));
 
         let status = if self.is_complete() {
             "complete"
@@ -66,13 +86,13 @@ impl BlockRecord {
         debug!("Block events record {status}. {}", result.join(", "));
     }
 
-    fn is_complete(&self) -> bool { self.time_ticks.len() == 8 }
+    fn is_complete(&self) -> bool { self.event_ticks.len() == 8 }
 
     fn is_complete_for_non_pivot(&self) -> bool {
-        self.time_ticks.range(..=Event::ConGraphDone).count() == 5
+        self.event_ticks.range(..=Event::ConGraphDone).count() == 5
     }
 }
 
-fn dict_item(key: &'static str, value: impl Debug) -> String {
+fn dict_item(key: &str, value: impl Debug) -> String {
     format!("{key}: {value:?}")
 }

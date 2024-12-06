@@ -13,6 +13,11 @@ pub fn record_event(hash: &H256, event: Event) {
     recorder.record_event(hash, event);
 }
 
+pub fn record_custom_event(hash: &H256, name: &'static str, stage: usize) {
+    let mut recorder = Recorder::get_instance_mut();
+    recorder.record_custom_event(hash, name, stage);
+}
+
 pub fn record_event_for_blocks(
     hashes: impl Iterator<Item = H256>, event: Event,
 ) {

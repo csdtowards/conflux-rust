@@ -49,6 +49,27 @@ impl Recorder {
         }
     }
 
+    pub fn record_custom_event(
+        &mut self, hash: &H256, name: &'static str, stage: usize,
+    ) {
+        let block_record = if let Some(r) = self.0.get_mut(hash) {
+            r
+        } else {
+            warn!(
+                "Block events record error: unknown hash {:?} on custom event {} at stage {}",
+                hash, name, stage
+            );
+            return;
+        };
+
+        let record_completed = block_record.record_custom_event(name, stage);
+
+        if record_completed {
+            block_record.log(hash);
+            self.0.remove(&hash);
+        }
+    }
+
     pub fn insert_new_block(&mut self, hash: &H256, record: BlockRecord) {
         if self.0.contains_key(hash) {
             return;
