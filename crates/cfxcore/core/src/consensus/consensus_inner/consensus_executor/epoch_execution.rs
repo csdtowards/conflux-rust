@@ -4,6 +4,7 @@ use std::{collections::BTreeSet, convert::From, sync::Arc};
 use alloy_rpc_types_trace::geth::GethDebugTracingOptions;
 use cfx_parameters::genesis::GENESIS_ACCOUNT_ADDRESS;
 use geth_tracer::{GethTraceWithHash, GethTracer, TxExecContext};
+use metrics::{Meter, MeterTimer};
 use pow_types::StakingEvent;
 
 use cfx_statedb::{Error as DbErrorKind, Result as DbResult};
@@ -33,6 +34,18 @@ use cfx_executor::{
     },
 };
 use cfx_vm_types::Env;
+
+use metrics::register_meter_with_group;
+lazy_static! {
+    static ref COMPUTE_TX_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "compute_tx");
+    static ref WAIT_PREFETCH_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "wait_for_prefetch");
+    pub(super) static ref DB_INSERT_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "db_insert");
+    static ref LEDGER_COMMIT_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "ledger_commit");
+}
 
 pub enum VirtualCall<'a> {
     GethTrace(GethTask<'a>),
@@ -129,6 +142,7 @@ impl ConsensusExecutionHandler {
     fn prefetch_storage_for_execution(
         &self, state: &State, epoch_blocks: &Vec<Arc<Block>>,
     ) {
+        let _timer = MeterTimer::time_func(WAIT_PREFETCH_TIMER.as_ref());
         // Prefetch accounts for transactions.
         // The return value _prefetch_join_handles is used to join all threads
         // before the exit of this function.
@@ -278,9 +292,12 @@ impl ConsensusExecutionHandler {
             settings: TransactSettings::all_checks(),
         };
 
+        let _timer = MeterTimer::time_func(COMPUTE_TX_TIMER.as_ref());
         let execution_outcome =
             ExecutiveContext::new(state, env, machine, &spec)
                 .transact(transaction, options)?;
+        std::mem::drop(_timer);
+
         execution_outcome.log(transaction, &block_context.block.hash());
 
         if let Some(burnt_fee) = execution_outcome
@@ -630,6 +647,7 @@ impl BlockProcessRecorder {
             return;
         }
 
+        let _timer = MeterTimer::time_func(DB_INSERT_TIMER.as_ref());
         if executive_trace {
             data_man.insert_block_traces(
                 block.hash(),

@@ -45,6 +45,7 @@ use crate::{
     block_data_manager::{BlockDataManager, BlockRewardResult, PosRewardInfo},
     consensus::{
         consensus_inner::{
+            consensus_executor::epoch_execution::DB_INSERT_TIMER,
             consensus_new_block_handler::ConsensusNewBlockHandler,
             StateBlameInfo,
         },
@@ -78,7 +79,10 @@ use self::epoch_execution::{GethTask, VirtualCall};
 
 lazy_static! {
     static ref CONSENSIS_EXECUTION_TIMER: Arc<dyn Meter> =
-        register_meter_with_group("timer", "consensus::handle_epoch_execution");
+        register_meter_with_group(
+            "execution_thread",
+            "consensus::handle_epoch_execution"
+        );
     static ref CONSENSIS_COMPUTE_STATE_FOR_BLOCK_TIMER: Arc<dyn Meter> =
         register_meter_with_group(
             "timer",
@@ -86,6 +90,20 @@ lazy_static! {
         );
     static ref GOOD_TPS_METER: Arc<dyn Meter> =
         register_meter_with_group("system_metrics", "good_tps");
+    static ref EXECUTION_OPT_TASK_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "opt_task_fetcher");
+    static ref EXECUTION_IDLE_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "idle");
+    static ref EXECUTION_GET_RESULT_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "get_result");
+    static ref EXECUTION_PROCESS_REWARD_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "process_reward");
+    static ref LEDGER_COMMIT_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "ledger_commit");
+    static ref CHANNEL_TASK_CNT: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "channel_task_counter");
+    static ref OPT_TASK_CNT: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "opt_task_counter");
 }
 
 /// The RewardExecutionInfo struct includes most information to compute rewards
@@ -224,6 +242,10 @@ impl ConsensusExecutor {
                 }
 
                 let get_optimistic_task = || {
+                    OPT_TASK_CNT.mark(1);
+                    let _timer = MeterTimer::time_func(
+                        EXECUTION_OPT_TASK_TIMER.as_ref(),
+                    );
                     let mut inner = consensus_inner.try_write()?;
 
                     let task = executor_thread
@@ -239,7 +261,12 @@ impl ConsensusExecutor {
                     // Consensus Inner lock, if we wait on
                     // inner lock here we may get deadlock.
                     match receiver.try_recv() {
-                        Ok(task) => Some(task),
+                        Ok(task) => {
+                            if matches!(task, ExecutionTask::ExecuteEpoch(_)) {
+                                CHANNEL_TASK_CNT.mark(1);
+                            }
+                            Some(task)
+                        }
                         Err(TryRecvError::Empty) => {
                             // The channel is empty, so we try to optimistically
                             // get later epochs to execute.
@@ -261,8 +288,20 @@ impl ConsensusExecutor {
                         //  and new tasks will be sent to `receiver` in this
                         // case, so this waiting will
                         // not prevent new optimistic tasks from being executed.
+                        let _timer = MeterTimer::time_func(
+                            EXECUTION_IDLE_TIMER.as_ref(),
+                        );
                         match receiver.recv() {
-                            Ok(task) => task,
+                            Ok(task) => {
+                                std::mem::drop(_timer);
+                                if matches!(
+                                    task,
+                                    ExecutionTask::ExecuteEpoch(_)
+                                ) {
+                                    CHANNEL_TASK_CNT.mark(1);
+                                }
+                                task
+                            }
                             Err(RecvError) => {
                                 info!("Channel receive error, stop thread");
                                 break;
@@ -891,6 +930,7 @@ impl ConsensusExecutionHandler {
     }
 
     fn handle_get_result_task(&self, task: GetExecutionResultTask) {
+        let _timer = MeterTimer::time_func(EXECUTION_GET_RESULT_TIMER.as_ref());
         task.sender
             .send(self.get_execution_result(&task.epoch_hash))
             .expect("Consensus Worker fails");
@@ -1086,6 +1126,8 @@ impl ConsensusExecutionHandler {
             start_block_number + epoch_receipts.len() as u64 - 1;
 
         if let Some(reward_execution_info) = reward_execution_info {
+            let _timer =
+                MeterTimer::time_func(EXECUTION_PROCESS_REWARD_TIMER.as_ref());
             let spec = self
                 .machine
                 .spec(current_block_number, pivot_block.block_header.height());
@@ -1112,9 +1154,12 @@ impl ConsensusExecutionHandler {
 
         mark(4);
 
-        let commit_result = state
-            .commit(*epoch_hash, debug_record.as_deref_mut())
-            .expect(&concat!(file!(), ":", line!(), ":", column!()));
+        let commit_result = {
+            let _timer = MeterTimer::time_func(LEDGER_COMMIT_TIMER.as_ref());
+            state
+                .commit(*epoch_hash, debug_record.as_deref_mut())
+                .expect(&concat!(file!(), ":", line!(), ":", column!()))
+        };
 
         mark(5);
 
@@ -1125,6 +1170,8 @@ impl ConsensusExecutionHandler {
             );
             self.notify_txpool(&commit_result, epoch_hash);
         };
+
+        let _timer = MeterTimer::time_func(DB_INSERT_TIMER.as_ref());
 
         self.data_man.insert_epoch_execution_commitment(
             pivot_block.hash(),
