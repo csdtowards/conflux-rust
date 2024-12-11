@@ -28,6 +28,27 @@ pub type StateDb = StateDbGeneric;
 // Put StateDb in mod to make sure that methods from statedb_ext don't access
 // its fields directly.
 mod impls {
+    use lazy_static::lazy_static;
+    use metrics::{
+        register_meter_with_group, register_timer_with_group, Meter,
+        ScopeTimer, Timer,
+    };
+    use std::sync::Arc;
+
+    lazy_static! {
+        static ref STATE_DB_APPLY: Arc<dyn Timer> =
+            register_timer_with_group("execution_io", "state_db_apply");
+        static ref COMPUTE_STORAGE_ROOT: Arc<dyn Timer> =
+            register_timer_with_group("execution_io", "compute_storage_root");
+        static ref STORAGE_COMMIT: Arc<dyn Timer> =
+            register_timer_with_group("execution_io", "storage_commit");
+        static ref LOAD_STORAGE_LAYOUT_COUNTER: Arc<dyn Meter> =
+            register_meter_with_group(
+                "execution_io",
+                "load_storage_layout_counter"
+            );
+    }
+
     type Key = Vec<u8>;
     type Value = Option<Arc<[u8]>>;
 
@@ -297,14 +318,18 @@ mod impls {
 
                     Some(value_ref) => StorageLayout::from_bytes(&*value_ref)?,
                 },
-                None => match storage.get(storage_layout_key)? {
-                    // A new account must set StorageLayout before accessing
-                    // the storage.
-                    None => bail!(Error::IncompleteDatabase(
-                        Address::from_slice(address)
-                    )),
-                    Some(raw) => StorageLayout::from_bytes(raw.as_ref())?,
-                },
+                None => {
+                    LOAD_STORAGE_LAYOUT_COUNTER.mark(1);
+
+                    match storage.get(storage_layout_key)? {
+                        // A new account must set StorageLayout before accessing
+                        // the storage.
+                        None => bail!(Error::IncompleteDatabase(
+                            Address::from_slice(address)
+                        )),
+                        Some(raw) => StorageLayout::from_bytes(raw.as_ref())?,
+                    }
+                }
             };
             storage_layouts_to_rewrite
                 .insert((address.into(), space), current_storage_layout);
@@ -348,6 +373,12 @@ mod impls {
         ) -> Result<()> {
             let mut storage_layouts_to_rewrite = Default::default();
             let accessed_entries = &*self.accessed_entries.get_mut();
+            if accessed_entries.is_empty() {
+                return Ok(());
+            }
+
+            let _timer = ScopeTimer::time_scope(STATE_DB_APPLY.clone());
+
             // First of all, apply all changes to the underlying storage.
             for (k, v) in accessed_entries {
                 if !v.is_modified() {
@@ -437,6 +468,8 @@ mod impls {
             &mut self, debug_record: Option<&mut ComputeEpochDebugRecord>,
         ) -> Result<StateRootWithAuxInfo> {
             self.apply_changes_to_storage(debug_record)?;
+
+            let _timer = ScopeTimer::time_scope(COMPUTE_STORAGE_ROOT.clone());
             Ok(self.storage.compute_state_root()?)
         }
 
@@ -451,6 +484,7 @@ mod impls {
                 Err(_) => self.compute_state_root(debug_record)?,
             };
 
+            let _timer = ScopeTimer::time_scope(STORAGE_COMMIT.clone());
             self.storage.commit(epoch_id)?;
 
             Ok(result)
@@ -506,6 +540,5 @@ mod impls {
             BTreeMap,
         },
         ops::Bound::{Excluded, Included, Unbounded},
-        sync::Arc,
     };
 }

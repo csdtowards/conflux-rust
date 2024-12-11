@@ -20,6 +20,7 @@ rlp = { workspace = true }
 tiny-keccak = { workspace = true }
 lazy_static = { workspace = true }
 cfx-util-macros ={ workspace = true}
+metrics = { workspace = true }
 
 [dev-dependencies]
 primitives = { workspace = true, features = ["test_no_account_length_check"] }

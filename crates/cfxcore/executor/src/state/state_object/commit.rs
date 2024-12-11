@@ -1,10 +1,20 @@
+use std::sync::Arc;
+
 use super::State;
 use cfx_internal_common::{
     debug::ComputeEpochDebugRecord, StateRootWithAuxInfo,
 };
 use cfx_statedb::{access_mode, Result as DbResult};
 use cfx_types::AddressWithSpace;
+use metrics::{register_timer_with_group, ScopeTimer, Timer};
 use primitives::{Account, EpochId, StorageKey};
+
+lazy_static! {
+    static ref ACCOUNT_STATE_DB_CLEAR_TIMER: Arc<dyn Timer> =
+        register_timer_with_group("execution_io", "account_db_clear");
+    static ref ACCOUNT_STATE_DB_COMMIT_TIMER: Arc<dyn Timer> =
+        register_timer_with_group("execution_io", "account_db_commit");
+}
 
 pub struct StateCommitResult {
     pub state_root: StateRootWithAuxInfo,
@@ -65,6 +75,9 @@ impl State {
             let address = *account.address();
 
             if account.pending_db_clear() {
+                let _timer = ScopeTimer::time_scope(
+                    ACCOUNT_STATE_DB_CLEAR_TIMER.clone(),
+                );
                 self.recycle_storage(
                     vec![address],
                     debug_record.as_deref_mut(),
@@ -72,6 +85,9 @@ impl State {
             }
 
             if !account.removed_without_update() {
+                let _timer = ScopeTimer::time_scope(
+                    ACCOUNT_STATE_DB_COMMIT_TIMER.clone(),
+                );
                 accounts_to_notify.push(account.as_account());
                 account.commit(
                     &mut self.db,

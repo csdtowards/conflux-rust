@@ -45,7 +45,7 @@ use crate::{
     block_data_manager::{BlockDataManager, BlockRewardResult, PosRewardInfo},
     consensus::{
         consensus_inner::{
-            consensus_executor::epoch_execution::DB_INSERT_TIMER,
+            consensus_executor::epoch_execution::EPOCH_DB_INSERT_TIMER,
             consensus_new_block_handler::ConsensusNewBlockHandler,
             StateBlameInfo,
         },
@@ -1171,7 +1171,7 @@ impl ConsensusExecutionHandler {
             self.notify_txpool(&commit_result, epoch_hash);
         };
 
-        let _timer = MeterTimer::time_func(DB_INSERT_TIMER.as_ref());
+        let _timer = MeterTimer::time_func(EPOCH_DB_INSERT_TIMER.as_ref());
 
         self.data_man.insert_epoch_execution_commitment(
             pivot_block.hash(),

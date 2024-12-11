@@ -12,9 +12,13 @@ use parking_lot::{
     MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLockReadGuard,
     RwLockWriteGuard,
 };
-use std::collections::{
-    hash_map::Entry::{Occupied, Vacant},
-    HashMap,
+use std::{
+    collections::{
+        hash_map::Entry::{Occupied, Vacant},
+        HashMap,
+    },
+    sync::Arc,
+    time::Instant,
 };
 
 pub type AccountReadGuard<'a> = MappedRwLockReadGuard<'a, OverlayAccount>;
@@ -83,13 +87,26 @@ impl State {
         // codebase.
 
         // Load the account and insert to cache
+        let load_instant = Instant::now();
         let mut account_entry =
             AccountEntry::new_loaded(self.db.get_account(address)?);
+        PREFETCH_LOAD_TIMER.update_since(load_instant);
+
         Self::load_account_ext_fields(require, &mut account_entry, &self.db)?;
 
+        let _save_timer = ScopeTimer::time_scope(PREFETCH_SAVE_TIMER.clone());
         self.cache.write().insert(*address, account_entry);
         Ok(())
     }
+}
+
+use metrics::{register_timer_with_group, ScopeTimer, Timer};
+
+lazy_static! {
+    static ref PREFETCH_LOAD_TIMER: Arc<dyn Timer> =
+        register_timer_with_group("execution_io", "prefetch_load");
+    static ref PREFETCH_SAVE_TIMER: Arc<dyn Timer> =
+        register_timer_with_group("execution_io", "prefetch_save");
 }
 
 impl State {

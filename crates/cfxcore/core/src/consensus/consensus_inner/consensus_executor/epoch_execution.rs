@@ -41,8 +41,12 @@ lazy_static! {
         register_meter_with_group("execution_thread", "compute_tx");
     static ref WAIT_PREFETCH_TIMER: Arc<dyn Meter> =
         register_meter_with_group("execution_thread", "wait_for_prefetch");
-    pub(super) static ref DB_INSERT_TIMER: Arc<dyn Meter> =
-        register_meter_with_group("execution_thread", "db_insert");
+    pub(super) static ref EPOCH_DB_INSERT_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "epoch_db_insert");
+    static ref BLOCK_DB_INSERT_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "block_db_insert");
+    static ref TX_DB_INSERT_TIMER: Arc<dyn Meter> =
+        register_meter_with_group("execution_thread", "tx_db_insert");
     static ref LEDGER_COMMIT_TIMER: Arc<dyn Meter> =
         register_meter_with_group("execution_thread", "ledger_commit");
 }
@@ -329,6 +333,8 @@ impl ConsensusExecutionHandler {
         }
 
         let hash = transaction.hash();
+
+        let _timer = MeterTimer::time_func(TX_DB_INSERT_TIMER.as_ref());
 
         self.data_man.insert_transaction_index(
             &hash,
@@ -647,7 +653,7 @@ impl BlockProcessRecorder {
             return;
         }
 
-        let _timer = MeterTimer::time_func(DB_INSERT_TIMER.as_ref());
+        let _timer = MeterTimer::time_func(BLOCK_DB_INSERT_TIMER.as_ref());
         if executive_trace {
             data_man.insert_block_traces(
                 block.hash(),

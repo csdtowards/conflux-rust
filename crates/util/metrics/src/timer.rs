@@ -29,7 +29,7 @@ fn register_timer_exp_decay(
         Arc::new(StandardTimer {
             meter: register_meter_with_group(group, counter_name),
             histogram: Sample::ExpDecay(0.015)
-                .register_with_group(group, time_name, 1024),
+                .register_with_group(group, time_name, 4096),
         })
     }
 }
