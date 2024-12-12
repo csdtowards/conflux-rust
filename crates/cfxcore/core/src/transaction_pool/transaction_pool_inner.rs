@@ -1,7 +1,7 @@
 use super::{
     account_cache::AccountCache,
     garbage_collector::GarbageCollector,
-    nonce_pool::{InsertResult, NoncePool, TxWithReadyInfo},
+    nonce_pool::{InsertResult, NoncePool, StopReason, TxWithReadyInfo},
     TransactionPoolError,
 };
 
@@ -388,6 +388,18 @@ impl DeferredPool {
         }
 
         return Some(first_tx.transaction.clone());
+    }
+
+    fn continous_ready_nonce(
+        &self, addr: AddressWithSpace, start_nonce: U256,
+        rest_balance: Option<U256>,
+    ) -> (U256, StopReason) {
+        let bucket = if let Some(bucket) = self.buckets.get(&addr) {
+            bucket
+        } else {
+            return (start_nonce, StopReason::NoMoreTransaction);
+        };
+        bucket.continous_ready_nonce(&start_nonce, rest_balance)
     }
 
     fn get_pending_info(
@@ -985,6 +997,17 @@ impl TransactionPoolInner {
         self.deferred_pool
             .last_succ_nonce(*address, state_nonce)
             .unwrap_or(state_nonce)
+    }
+
+    pub fn continous_ready_nonce(
+        &self, address: &AddressWithSpace, state_nonce: U256,
+        rest_balance: Option<U256>,
+    ) -> (U256, StopReason) {
+        self.deferred_pool.continous_ready_nonce(
+            *address,
+            state_nonce,
+            rest_balance,
+        )
     }
 
     #[allow(dead_code)]

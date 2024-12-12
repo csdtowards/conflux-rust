@@ -4,7 +4,7 @@
 
 use cfx_bytes as bytes;
 use cfxkey as keylib;
-use log::{debug, info, trace};
+use log::{debug, info, trace, warn};
 
 use crate::bytes::Bytes;
 use cfx_types::{
@@ -28,7 +28,6 @@ use rlp::Encodable;
 use rustc_hex::{FromHex, ToHex};
 use secret_store::SharedSecretStore;
 use std::{
-    cmp::Ordering,
     collections::HashMap,
     convert::TryFrom,
     sync::Arc,
@@ -40,6 +39,8 @@ use time::Duration;
 lazy_static! {
     static ref TX_GEN_METER: Arc<dyn Meter> =
         register_meter_with_group("system_metrics", "tx_gen");
+    static ref TX_GEN_ERROR_METER: Arc<dyn Meter> =
+        register_meter_with_group("system_metrics", "tx_gen_error");
 }
 
 enum TransGenState {
@@ -51,16 +52,19 @@ pub struct TransactionGeneratorConfig {
     pub generate_tx: bool,
     pub period: time::Duration,
     pub account_count: usize,
+    pub batch_size: usize,
 }
 
 impl TransactionGeneratorConfig {
     pub fn new(
         generate_tx: bool, period_ms: u64, account_count: usize,
+        batch_size: usize,
     ) -> Self {
         TransactionGeneratorConfig {
             generate_tx,
             period: time::Duration::from_micros(period_ms),
             account_count,
+            batch_size,
         }
     }
 }
@@ -113,7 +117,7 @@ impl TransactionGenerator {
     pub fn generate_transactions_with_multiple_genesis_accounts(
         txgen: Arc<TransactionGenerator>,
         tx_config: TransactionGeneratorConfig,
-        genesis_accounts: HashMap<Address, U256>,
+        _genesis_accounts: HashMap<Address, U256>,
     ) {
         loop {
             let account_start = txgen.account_start_index.read();
@@ -122,8 +126,7 @@ impl TransactionGenerator {
             }
         }
         let account_start_index = txgen.account_start_index.read().unwrap();
-        let mut nonce_map: HashMap<Address, U256> = HashMap::new();
-        let mut balance_map: HashMap<Address, U256> = HashMap::new();
+
         let mut address_secret_pair: HashMap<Address, Secret> = HashMap::new();
         let mut addresses: Vec<Address> = Vec::new();
 
@@ -152,12 +155,6 @@ impl TransactionGenerator {
             let address = key_pair.address();
             let secret = key_pair.secret().clone();
             addresses.push(address);
-            nonce_map.insert(address.clone(), 0.into());
-
-            let balance = genesis_accounts.get(&address).cloned();
-
-            balance_map
-                .insert(address.clone(), balance.unwrap_or(U256::zero()));
             address_secret_pair.insert(address, secret);
         }
 
@@ -186,71 +183,104 @@ impl TransactionGenerator {
             let balance_to_transfer = U256::from(0);
 
             // Generate nonce for the transaction
-            let sender_nonce = nonce_map.get_mut(&sender_address).unwrap();
-
-            // FIXME: It's better first define what kind of Result type
-            // FIXME: to use for this function, then change unwrap() to ?.
-            let (nonce, balance) = txgen
-                .txpool
-                .get_state_account_info(&sender_address.with_native_space())
-                .unwrap();
-            if nonce.cmp(sender_nonce) != Ordering::Equal {
-                *sender_nonce = nonce.clone();
-                balance_map.insert(sender_address.clone(), balance.clone());
-            }
+            let maybe_next_nonce = txgen.txpool.get_next_nonce_for_tx_gen(
+                &sender_address.with_native_space(),
+                21000.into(),
+            );
+            let sender_nonce = if let Some(nonce) = maybe_next_nonce {
+                nonce
+            } else {
+                addresses.remove(sender_index);
+                if addresses.is_empty() {
+                    break;
+                } else {
+                    continue;
+                }
+            };
             trace!(
-                "receiver={:?} value={:?} nonce={:?}",
+                "receiver={:?} value={:?} nonce={:?} batch={}",
                 receiver_address,
                 balance_to_transfer,
-                sender_nonce
+                sender_nonce,
+                tx_config.batch_size
             );
+
             // Generate the transaction, sign it, and push into the transaction
             // pool
-            let tx: Transaction = NativeTransaction {
-                nonce: *sender_nonce,
-                gas_price: U256::from(1u64),
-                gas: U256::from(21000u64),
-                value: balance_to_transfer,
-                action: Action::Call(receiver_address),
-                storage_limit: 0,
-                chain_id: txgen.consensus.best_chain_id().in_native_space(),
-                epoch_height: txgen.consensus.best_epoch_number(),
-                data: Bytes::new(),
-            }
-            .into();
-
-            let signed_tx = tx.sign(&address_secret_pair[&sender_address]);
             let mut tx_to_insert = Vec::new();
-            tx_to_insert.push(signed_tx.transaction);
-            let (txs, fail) =
+            for i in 0..tx_config.batch_size {
+                let tx: Transaction = NativeTransaction {
+                    nonce: sender_nonce + i,
+                    gas_price: U256::from(1u64),
+                    gas: U256::from(21000u64),
+                    value: balance_to_transfer,
+                    action: Action::Call(receiver_address),
+                    storage_limit: 0,
+                    chain_id: txgen.consensus.best_chain_id().in_native_space(),
+                    epoch_height: txgen.consensus.best_epoch_number(),
+                    data: Bytes::new(),
+                }
+                .into();
+                let signed_tx = tx.sign(&address_secret_pair[&sender_address]);
+                tx_to_insert.push(signed_tx.transaction);
+            }
+            let (success_txs, fail) =
                 txgen.txpool.insert_new_transactions(tx_to_insert);
-            if fail.is_empty() {
-                txgen.sync.append_received_transactions(txs);
-                //tx successfully inserted into
-                // tx pool, so we can update our state about
-                // nonce and balance
-                {
-                    let sender_balance =
-                        balance_map.get_mut(&sender_address).unwrap();
-                    *sender_balance -= balance_to_transfer + 21000;
-                    if *sender_balance < 42000.into() {
-                        addresses.remove(sender_index);
-                        if addresses.is_empty() {
-                            break;
-                        }
+
+            let success_num = success_txs.len();
+            tx_n += success_num as u32;
+            TX_GEN_METER.mark(success_num);
+
+            if !success_txs.is_empty() {
+                txgen.sync.append_received_transactions(success_txs);
+            }
+
+            let mut tx_pool_is_full = false;
+            let mut not_enough_balance = false;
+
+            for (_, reason) in fail.into_iter() {
+                use cfxcore::transaction_pool::TransactionPoolError::*;
+                use primitives::transaction::TransactionError::{
+                    AlreadyImported, InsufficientBalance, Stale,
+                    TooCheapToReplace,
+                };
+                match reason {
+                    OutOfBalance { .. }
+                    | TransactionError(InsufficientBalance { .. }) => {
+                        not_enough_balance = true;
+                    }
+                    TxPoolFull => {
+                        tx_pool_is_full = true;
+                    }
+                    NonceTooDistant { .. }
+                    | NonceTooStale { .. }
+                    | TransactionError(Stale) => {
+                        // Improper nonce, retry
+                    }
+                    HigherGasPriceNeeded { .. }
+                    | TransactionError(AlreadyImported | TooCheapToReplace) => {
+                        // Transaction for the same nonce has been inserted,
+                        // ignore it.
+                    }
+                    StateDbError(e) => panic!("db error: {:?}", e),
+                    err => {
+                        TX_GEN_ERROR_METER.mark(1);
+                        warn!("tx gen with unexpected error {:?}", err);
                     }
                 }
-                *sender_nonce += U256::one();
-                *balance_map.entry(receiver_address).or_insert(0.into()) +=
-                    balance_to_transfer;
-                tx_n += 1;
-                TX_GEN_METER.mark(1);
-            } else {
-                // The transaction pool is full and the tx is discarded, so the
-                // state should not updated. We add unconditional
-                // sleep to avoid busy spin if the tx pool cannot support the
-                // expected throughput.
+            }
+
+            if tx_pool_is_full {
                 thread::sleep(tx_config.period);
+            }
+
+            if not_enough_balance {
+                addresses.remove(sender_index);
+                if addresses.is_empty() {
+                    break;
+                } else {
+                    continue;
+                }
             }
 
             let now = Instant::now();

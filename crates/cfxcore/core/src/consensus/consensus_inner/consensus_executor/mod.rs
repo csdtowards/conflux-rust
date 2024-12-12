@@ -27,10 +27,7 @@ use cfx_internal_common::{
 };
 use cfx_parameters::consensus::*;
 use cfx_statedb::{Result as DbResult, StateDb};
-use cfx_storage::{
-    defaults::DEFAULT_EXECUTION_PREFETCH_THREADS, StateIndex,
-    StorageManagerTrait,
-};
+use cfx_storage::{StateIndex, StorageManagerTrait};
 use cfx_types::{
     address_util::AddressUtil, AddressSpaceUtil, AllChainID, BigEndianHash,
     Space, H160, H256, KECCAK_EMPTY_BLOOM, U256, U512,
@@ -876,6 +873,16 @@ impl ConsensusExecutionHandler {
         verification_config: VerificationConfig, machine: Arc<Machine>,
         pos_verifier: Arc<PosVerifier>,
     ) -> Self {
+        let execution_state_prefetcher = if config.prefetch_threads > 0 {
+            Some(
+                ThreadPoolBuilder::new()
+                    .num_threads(config.prefetch_threads)
+                    .build()
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
         ConsensusExecutionHandler {
             tx_pool,
             data_man,
@@ -883,18 +890,7 @@ impl ConsensusExecutionHandler {
             verification_config,
             machine,
             pos_verifier,
-            execution_state_prefetcher: if DEFAULT_EXECUTION_PREFETCH_THREADS
-                > 0
-            {
-                Some(
-                    ThreadPoolBuilder::new()
-                        .num_threads(DEFAULT_EXECUTION_PREFETCH_THREADS)
-                        .build()
-                        .unwrap(),
-                )
-            } else {
-                None
-            },
+            execution_state_prefetcher,
         }
     }
 
@@ -1829,4 +1825,5 @@ impl ConsensusExecutionHandler {
 
 pub struct ConsensusExecutionConfiguration {
     pub executive_trace: bool,
+    pub prefetch_threads: usize,
 }
