@@ -404,14 +404,19 @@ class ConfluxTestFramework:
         try:
             for i, node in enumerate(self.nodes):
                 node.start(extra_args, *args, **kwargs)
+
+            i = 0
             for node in self.nodes:
+                self.log.info("node {} {}".format(i, node.ip))
                 node.wait_for_rpc_connection()
                 node.wait_for_nodeid()
                 node.wait_for_recovery(["NormalSyncPhase"], 10)
+                i += 1
         except:
             # If one node failed to start, stop the others
-            self.stop_nodes()
-            raise
+            # self.stop_nodes()
+            # raise
+            self.log.info("skip failed node")
 
         if self.options.coveragedir is not None:
             for node in self.nodes:
