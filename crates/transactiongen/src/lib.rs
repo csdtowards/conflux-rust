@@ -222,7 +222,7 @@ impl TransactionGenerator {
                 }
                 .into();
                 let signed_tx = tx.sign(&address_secret_pair[&sender_address]);
-                tx_to_insert.push(signed_tx.transaction);
+                tx_to_insert.push(signed_tx);
             }
             let (success_txs, fail) =
                 txgen.txpool.insert_new_transactions(tx_to_insert);

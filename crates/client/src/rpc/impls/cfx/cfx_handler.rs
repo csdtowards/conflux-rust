@@ -556,8 +556,11 @@ impl RpcImpl {
             warn!("Ignore send_transaction request {}. Cannot send transaction when the node is still in catch-up mode.", tx.hash());
             bail!(request_rejected_in_catch_up_mode(None));
         }
+        
+        let public = tx.recover_public().unwrap();
+        let signed = SignedTransaction::new(public, tx);
         let (signed_trans, failed_trans) =
-            self.tx_pool.insert_new_transactions(vec![tx]);
+            self.tx_pool.insert_new_transactions(vec![signed]);
 
         match (signed_trans.len(), failed_trans.len()) {
             (0, 0) => {

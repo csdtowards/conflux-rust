@@ -1350,8 +1350,6 @@ impl TransactionPoolInner {
         transaction: Arc<SignedTransaction>, packed: bool, force: bool,
     ) -> Result<(), TransactionPoolError> {
         let _timer = MeterTimer::time_func(TX_POOL_INNER_INSERT_TIMER.as_ref());
-        let (sponsored_gas, sponsored_storage) =
-            self.get_sponsored_gas_and_storage(account_cache, &transaction)?;
 
         let (state_nonce, state_balance) =
             account_cache.get_nonce_and_balance(&transaction.sender())?;
@@ -1387,52 +1385,12 @@ impl TransactionPoolInner {
             });
         }
 
-        // check balance
-        if !packed && !force {
-            let mut need_balance = U256::from(0);
-            let estimate_gas_fee = Self::estimated_gas_fee(
-                transaction.gas().clone(),
-                transaction.gas_price().clone(),
-            );
-            match transaction.unsigned {
-                Transaction::Native(ref utx) => {
-                    need_balance += utx.value().clone();
-                    if sponsored_gas == U256::from(0) {
-                        need_balance += estimate_gas_fee;
-                    }
-                    if sponsored_storage == 0 {
-                        need_balance += U256::from(*utx.storage_limit())
-                            * *DRIPS_PER_STORAGE_COLLATERAL_UNIT;
-                    }
-                }
-                Transaction::Ethereum(ref utx) => {
-                    need_balance += utx.value().clone();
-                    need_balance += estimate_gas_fee;
-                }
-            }
-
-            if need_balance > state_balance {
-                let msg = format!(
-                    "Transaction {:?} is discarded due to out of balance, needs {:?} but account balance is {:?}",
-                    transaction.hash(),
-                    need_balance,
-                    state_balance
-                );
-                trace!("{}", msg);
-                return Err(TransactionPoolError::OutOfBalance {
-                    need: need_balance,
-                    have: state_balance,
-                    hash: transaction.hash(),
-                });
-            }
-        }
-
         let result = self.insert_transaction_without_readiness_check(
             transaction.clone(),
             packed,
             force,
             (state_nonce, state_balance),
-            (sponsored_gas, sponsored_storage),
+            (0.into(), 0),
         );
         if let InsertResult::Failed(err) = result {
             return Err(err);
