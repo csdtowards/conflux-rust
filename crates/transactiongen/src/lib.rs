@@ -163,6 +163,11 @@ impl TransactionGenerator {
         // Generate more tx
 
         let account_count = address_secret_pair.len();
+        let mut val = vec![];
+        for _ in 0..500 {
+            val.push(random::<u8>());
+        }
+
         loop {
             match *txgen.state.read() {
                 TransGenState::Stop => return,
@@ -218,7 +223,7 @@ impl TransactionGenerator {
                     storage_limit: 0,
                     chain_id: txgen.consensus.best_chain_id().in_native_space(),
                     epoch_height: txgen.consensus.best_epoch_number(),
-                    data: Bytes::new(),
+                    data: Bytes::from(val.clone()),
                 }
                 .into();
                 let signed_tx = tx.sign(&address_secret_pair[&sender_address]);
