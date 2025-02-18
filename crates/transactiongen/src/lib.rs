@@ -217,7 +217,7 @@ impl TransactionGenerator {
                 let tx: Transaction = NativeTransaction {
                     nonce: sender_nonce + i,
                     gas_price: U256::from(1u64),
-                    gas: U256::from(21000u64),
+                    gas: U256::from(60000u64),
                     value: balance_to_transfer,
                     action: Action::Call(receiver_address),
                     storage_limit: 0,
