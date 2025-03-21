@@ -114,6 +114,11 @@ impl TransactionDataManager {
         Ok(())
     }
 
+    pub fn remember_signed_tx(&self, signed_txs: &Vec<Arc<SignedTransaction>>) {
+        let mut time_window = self.tx_time_window.write();
+        time_window.append_transactions(signed_txs.iter());
+    }
+
     pub fn recover_unsigned_tx_with_order(
         &self, transactions: &Vec<TransactionWithSignature>,
     ) -> Result<Vec<Arc<SignedTransaction>>, DecoderError> {
@@ -237,7 +242,7 @@ impl TransactionDataManager {
             }
         }
         let mut tx_time_window = self.tx_time_window.write();
-        tx_time_window.append_transactions(&recovered_trans.clone());
+        tx_time_window.append_transactions(recovered_trans.iter().map(|(_, tx)| tx));
         Ok(recovered_trans)
     }
 

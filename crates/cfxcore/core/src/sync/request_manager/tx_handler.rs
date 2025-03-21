@@ -523,11 +523,11 @@ impl TransactionCacheContainer {
         tx
     }
 
-    pub fn append_transactions(
-        &mut self, transactions: &Vec<(usize, Arc<SignedTransaction>)>,
+    pub fn append_transactions<'a>(
+        &mut self, transactions: impl Iterator<Item=&'a Arc<SignedTransaction>>
     ) {
         let mut values = Vec::new();
-        for (_, transaction) in transactions {
+        for transaction in transactions {
             let tx_hash = transaction.hash();
             let short_id = CompactBlock::to_u32(
                 tx_hash[28],

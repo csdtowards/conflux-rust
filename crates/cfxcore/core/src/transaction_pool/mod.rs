@@ -500,6 +500,8 @@ impl TransactionPool {
             return (passed_transactions, failure);
         }
 
+        let arc_transactions = transactions.iter().map(|tx| Arc::new(tx.clone())).collect();
+        self.data_man.remember_signed_tx(&arc_transactions);
         {
             // Recover public key and insert into pool with readiness check.
             // Note, the workload of recovering public key is very heavy,

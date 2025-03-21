@@ -1547,8 +1547,12 @@ impl BlockDataManager {
     }
 
     pub fn recover_block(&self, block: &mut Block) -> Result<(), DecoderError> {
-        // self.tx_data_manager.recover_block(block)
+        self.tx_data_manager.remember_signed_tx(&block.transactions);
         Ok(())
+    }
+
+    pub fn remember_signed_tx(&self, transactions: &Vec<Arc<SignedTransaction>>) {
+        self.tx_data_manager.remember_signed_tx(transactions)
     }
 
     pub fn recover_unsigned_tx_with_order(
