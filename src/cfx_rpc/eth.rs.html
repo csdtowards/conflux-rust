@@ -1495,6 +1495,39 @@
 <a href="#1493" id="1493">1493</a>
 <a href="#1494" id="1494">1494</a>
 <a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::helpers::{FeeHistoryCache, MAX_FEE_HISTORY_CACHE_BLOCK_COUNT};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>cfx_execute_helper::estimation::EstimateRequest;
@@ -1507,17 +1540,22 @@
 };
 <span class="kw">use </span>cfx_rpc_eth_api::EthApiServer;
 <span class="kw">use </span>cfx_rpc_eth_types::{
-    AccountOverride, AccountPendingTransactions, Block, BlockNumber <span class="kw">as </span>BlockId,
-    BlockOverrides, EthRpcLogFilter, EthRpcLogFilter <span class="kw">as </span>Filter, EvmOverrides,
-    FeeHistory, Header, Log, Receipt, RpcStateOverride, SyncInfo, SyncStatus,
-    Transaction, TransactionRequest,
+    AccessListResult, AccountOverride, AccountPendingTransactions, Block,
+    BlockNumber <span class="kw">as </span>BlockId, BlockOverrides, Bundle, EthCallResponse,
+    EthRpcLogFilter, EthRpcLogFilter <span class="kw">as </span>Filter, EvmOverrides, FeeHistory,
+    Header, Log, Receipt, RpcStateOverride, SimulatePayload, SimulatedBlock,
+    StateContext, SyncInfo, SyncStatus, Transaction, TransactionRequest,
 };
 <span class="kw">use </span>cfx_rpc_primitives::{Bytes, Index, U64 <span class="kw">as </span>HexU64};
-<span class="kw">use </span>cfx_rpc_utils::error::{
-    errors::<span class="kw-2">*</span>, jsonrpc_error_helpers::<span class="kw-2">*</span>,
-    jsonrpsee_error_helpers::internal_error <span class="kw">as </span>jsonrpsee_internal_error,
+<span class="kw">use </span>cfx_rpc_utils::{
+    error::{
+        errors::<span class="kw-2">*</span>, jsonrpc_error_helpers::<span class="kw-2">*</span>,
+        jsonrpsee_error_helpers::internal_error <span class="kw">as </span>jsonrpsee_internal_error,
+    },
+    helpers::SpawnBlocking,
 };
 <span class="kw">use </span>cfx_statedb::StateDbExt;
+<span class="kw">use </span>cfx_tasks::{TaskExecutor, TaskSpawner};
 <span class="kw">use </span>cfx_types::{
     Address, AddressSpaceUtil, BigEndianHash, Space, H160, H256, H64, U256, U64,
 };
@@ -1529,7 +1567,7 @@
     SharedSynchronizationService, SharedTransactionPool,
 };
 <span class="kw">use </span>jsonrpc_core::Error <span class="kw">as </span>RpcError;
-<span class="kw">use </span>jsonrpsee::core::RpcResult;
+<span class="kw">use </span>jsonrpsee::{core::RpcResult, types::ErrorObjectOwned};
 <span class="kw">use </span>primitives::{
     filter::LogFilter, receipt::EVM_SPACE_SUCCESS, Action,
     BlockHashOrEpochNumber, EpochNumber, StorageKey, StorageValue,
@@ -1537,7 +1575,7 @@
 };
 <span class="kw">use </span>rustc_hex::ToHex;
 <span class="kw">use </span>solidity_abi::string_revert_reason_decode;
-<span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>std::{collections::HashMap, future::Future};
 
 <span class="kw">type </span>BlockNumber = BlockId;
 <span class="kw">type </span>BlockNumberOrTag = BlockId;
@@ -1545,18 +1583,21 @@
 <span class="kw">type </span>JsonStorageKey = U256;
 <span class="kw">type </span>RpcBlock = Block;
 
-<span class="kw">pub struct </span>EthApi {
+<span class="attr">#[derive(Clone)]
+</span><span class="kw">pub struct </span>EthApi {
     config: RpcImplConfiguration,
     consensus: SharedConsensusGraph,
     sync: SharedSynchronizationService,
     tx_pool: SharedTransactionPool,
     fee_history_cache: FeeHistoryCache,
+    executor: TaskExecutor,
 }
 
 <span class="kw">impl </span>EthApi {
     <span class="kw">pub fn </span>new(
         config: RpcImplConfiguration, consensus: SharedConsensusGraph,
         sync: SharedSynchronizationService, tx_pool: SharedTransactionPool,
+        executor: TaskExecutor,
     ) -&gt; <span class="self">Self </span>{
         EthApi {
             config,
@@ -1564,6 +1605,7 @@
             sync,
             tx_pool,
             fee_history_cache: FeeHistoryCache::new(),
+            executor,
         }
     }
 
@@ -1712,15 +1754,11 @@
                 <span class="macro">bail!</span>(invalid_input_rpc_err(<span class="macro">format! </span>{<span class="string">"err: {:?}"</span>, e}))
             }
             ExecutionOutcome::ExecutionErrorBumpNonce(
-                e @ ExecutionError::NotEnoughCash { .. },
+                ExecutionError::NotEnoughCash { .. },
                 _executed,
             ) =&gt; {
-                <span class="macro">bail!</span>(geth_call_execution_error(
-                    <span class="macro">format!</span>(
-                        <span class="string">"insufficient funds for gas * price + value: {:?})"</span>,
-                        e
-                    ),
-                    <span class="string">""</span>.into()
+                <span class="macro">bail!</span>(RpcError::from(
+                    RpcInvalidTransactionError::InsufficientFunds
                 ))
             }
             ExecutionOutcome::ExecutionErrorBumpNonce(
@@ -2544,6 +2582,27 @@
     }
 }
 
+<span class="kw">impl </span>SpawnBlocking <span class="kw">for </span>EthApi {
+    <span class="kw">fn </span>io_task_spawner(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>TaskSpawner { <span class="self">self</span>.executor.clone() }
+}
+
+<span class="kw">impl </span>EthApi {
+    <span class="kw">pub fn </span>async_transaction_by_hash(
+        <span class="kw-2">&amp;</span><span class="self">self</span>, hash: H256,
+    ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Transaction&gt;, ErrorObjectOwned&gt;&gt; + Send
+    {
+        <span class="kw">let </span>self_clone = <span class="self">self</span>.clone();
+        <span class="kw">async move </span>{
+            <span class="kw">let </span>resp = self_clone
+                .spawn_blocking_io(<span class="kw">move </span>|this| {
+                    this.transaction_by_hash(hash).map_err(|err| err.into())
+                })
+                .<span class="kw">await</span>;
+            resp
+        }
+    }
+}
+
 <span class="kw">impl </span>BlockProvider <span class="kw">for </span><span class="kw-2">&amp;</span>EthApi {
     <span class="kw">fn </span>get_block_epoch_number(<span class="kw-2">&amp;</span><span class="self">self</span>, hash: <span class="kw-2">&amp;</span>H256) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
         <span class="self">self</span>.consensus_graph().get_block_epoch_number(hash)
@@ -2671,8 +2730,8 @@
     </span><span class="kw">async fn </span>transaction_by_hash(
         <span class="kw-2">&amp;</span><span class="self">self</span>, hash: H256,
     ) -&gt; RpcResult&lt;<span class="prelude-ty">Option</span>&lt;Transaction&gt;&gt; {
-        <span class="self">self</span>.transaction_by_hash(hash).map_err(|err| err.into())
-    }
+        <span class="self">self</span>.async_transaction_by_hash(hash).<span class="kw">await
+    </span>}
 
     <span class="doccomment">/// Returns information about a raw transaction by block hash and
     /// transaction index position.
@@ -2778,13 +2837,15 @@
     <span class="doccomment">/// `eth_simulateV1` executes an arbitrary number of transactions on top of
     /// the requested state. The transactions are packed into individual
     /// blocks. Overrides can be provided.
-    </span><span class="comment">// async fn simulate_v1(
-    //     &amp;self,
-    //     opts: SimBlock,
-    //     block_number: Option&lt;BlockId&gt;,
-    // ) -&gt; RpcResult&lt;Vec&lt;SimulatedBlock&gt;&gt;;
+    </span><span class="kw">async fn </span>simulate_v1(
+        <span class="kw-2">&amp;</span><span class="self">self</span>, opts: SimulatePayload, block_number: <span class="prelude-ty">Option</span>&lt;BlockId&gt;,
+    ) -&gt; RpcResult&lt;Vec&lt;SimulatedBlock&gt;&gt; {
+        <span class="kw">let _ </span>= block_number;
+        <span class="kw">let _ </span>= opts;
+        <span class="prelude-val">Err</span>(jsonrpsee_internal_error(<span class="string">"Not implemented"</span>))
+    }
 
-    </span><span class="doccomment">/// Executes a new message call immediately without creating a transaction
+    <span class="doccomment">/// Executes a new message call immediately without creating a transaction
     /// on the block chain.
     </span><span class="kw">async fn </span>call(
         <span class="kw-2">&amp;</span><span class="self">self</span>, request: TransactionRequest, block_number: <span class="prelude-ty">Option</span>&lt;BlockId&gt;,
@@ -2803,14 +2864,17 @@
 
     <span class="doccomment">/// Simulate arbitrary number of transactions at an arbitrary blockchain
     /// index, with the optionality of state overrides
-    </span><span class="comment">// async fn call_many(
-    //     &amp;self,
-    //     bundle: Bundle,
-    //     state_context: Option&lt;StateContext&gt;,
-    //     state_override: Option&lt;StateOverride&gt;,
-    // ) -&gt; RpcResult&lt;Vec&lt;EthCallResponse&gt;&gt;;
+    </span><span class="kw">async fn </span>call_many(
+        <span class="kw-2">&amp;</span><span class="self">self</span>, bundle: Bundle, state_context: <span class="prelude-ty">Option</span>&lt;StateContext&gt;,
+        state_override: <span class="prelude-ty">Option</span>&lt;RpcStateOverride&gt;,
+    ) -&gt; RpcResult&lt;Vec&lt;EthCallResponse&gt;&gt; {
+        <span class="kw">let _ </span>= bundle;
+        <span class="kw">let _ </span>= state_context;
+        <span class="kw">let _ </span>= state_override;
+        <span class="prelude-val">Err</span>(jsonrpsee_internal_error(<span class="string">"Not implemented"</span>))
+    }
 
-    </span><span class="doccomment">/// Generates an access list for a transaction.
+    <span class="doccomment">/// Generates an access list for a transaction.
     ///
     /// This method creates an [EIP2930](https://eips.ethereum.org/EIPS/eip-2930) type accessList based on a given Transaction.
     ///
@@ -2826,13 +2890,15 @@
     /// could change when the transaction is actually mined. Adding an
     /// accessList to your transaction does not necessary result in lower
     /// gas usage compared to a transaction without an access list.
-    </span><span class="comment">// async fn create_access_list(
-    //     &amp;self,
-    //     request: TransactionRequest,
-    //     block_number: Option&lt;BlockId&gt;,
-    // ) -&gt; RpcResult&lt;AccessListResult&gt;;
+    </span><span class="kw">async fn </span>create_access_list(
+        <span class="kw-2">&amp;</span><span class="self">self</span>, request: TransactionRequest, block_number: <span class="prelude-ty">Option</span>&lt;BlockId&gt;,
+    ) -&gt; RpcResult&lt;AccessListResult&gt; {
+        <span class="kw">let _ </span>= block_number;
+        <span class="kw">let _ </span>= request;
+        <span class="prelude-val">Err</span>(jsonrpsee_internal_error(<span class="string">"Not implemented"</span>))
+    }
 
-    </span><span class="doccomment">/// Generates and returns an estimate of how much gas is necessary to allow
+    <span class="doccomment">/// Generates and returns an estimate of how much gas is necessary to allow
     /// the transaction to complete.
     </span><span class="kw">async fn </span>estimate_gas(
         <span class="kw-2">&amp;</span><span class="self">self</span>, request: TransactionRequest, block_number: <span class="prelude-ty">Option</span>&lt;BlockId&gt;,
