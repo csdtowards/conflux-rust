@@ -1,6 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cfxcore/executor/src/spec.rs`."><title>spec.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cfx_executor" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0-nightly (b11fbfbf3 2024-02-03)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
-            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../cfx_executor/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/execution/executor/src/spec.rs`."><title>spec.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cfx_executor" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0-nightly (fb898629a 2024-04-21)" data-channel="nightly" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../cfx_executor/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -268,6 +266,49 @@
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2019 Conflux Foundation. All rights reserved.
 // Conflux is free software and distributed under GNU General Public License.
 // See http://www.gnu.org/licenses/
@@ -288,7 +329,7 @@
     },
 };
 <span class="kw">use </span>cfx_types::{AllChainID, Space, SpaceMap, U256, U512};
-<span class="kw">use </span>cfx_vm_types::Spec;
+<span class="kw">use </span>cfx_vm_types::{CIP645Spec, ConsensusGasSpec, Spec};
 <span class="kw">use </span>primitives::{block::BlockHeight, BlockNumber};
 <span class="kw">use </span>std::collections::BTreeMap;
 
@@ -405,7 +446,27 @@
     </span><span class="kw">pub </span>cip130: BlockHeight,
     <span class="doccomment">/// CIP-133: Enhanced Block Hash Query
     </span><span class="kw">pub </span>cip133e: BlockHeight,
-    <span class="kw">pub </span>cip1559: BlockHeight,
+    <span class="doccomment">/// CIP-1559: Fee Market Change for Conflux
+    </span><span class="kw">pub </span>cip1559: BlockHeight,
+    <span class="doccomment">/// CIP-150: Reject New Contract Code Starting with the 0xEF byte
+    </span><span class="kw">pub </span>cip150: BlockHeight,
+    <span class="doccomment">/// CIP-151: SELFDESTRUCT only in Same Transaction
+    </span><span class="kw">pub </span>cip151: BlockHeight,
+    <span class="doccomment">/// CIP-152: Reject Transactions from Senders with Deployed Code
+    </span><span class="kw">pub </span>cip152: BlockHeight,
+    <span class="doccomment">/// CIP-154: Fix Inconsistent Implementation of TLOAD
+    </span><span class="kw">pub </span>cip154: BlockHeight,
+    <span class="doccomment">/// CIP-7702: Set Code for EOA
+    </span><span class="kw">pub </span>cip7702: BlockHeight,
+    <span class="doccomment">/// CIP-645: Align Conflux Gas Pricing with EVM
+    </span><span class="kw">pub </span>cip645: BlockHeight,
+    <span class="kw">pub </span>align_evm: BlockHeight,
+    <span class="doccomment">/// EIP-2935: Serve historical block hashes from state
+    </span><span class="kw">pub </span>eip2935: BlockHeight,
+    <span class="doccomment">/// EIP-2537: Precompile for BLS12-381 curve operations
+    </span><span class="kw">pub </span>eip2537: BlockHeight,
+    <span class="doccomment">/// EIP-7623: Increase calldata cost
+    </span><span class="kw">pub </span>eip7623: BlockHeight,
     <span class="kw">pub </span>cip_c2_fix: BlockHeight,
 }
 
@@ -465,11 +526,34 @@
         spec.cip144 = number &gt;= <span class="self">self</span>.transition_numbers.cip144;
         spec.cip145 = number &gt;= <span class="self">self</span>.transition_numbers.cip145;
         spec.cip1559 = height &gt;= <span class="self">self</span>.transition_heights.cip1559;
+        spec.cip150 = height &gt;= <span class="self">self</span>.transition_heights.cip150;
+        spec.cip151 = height &gt;= <span class="self">self</span>.transition_heights.cip151;
+        spec.cip152 = height &gt;= <span class="self">self</span>.transition_heights.cip152;
+        spec.cip154 = height &gt;= <span class="self">self</span>.transition_heights.cip154;
+        spec.cip7702 = height &gt;= <span class="self">self</span>.transition_heights.cip7702;
+        <span class="kw">let </span>cip645 = height &gt;= <span class="self">self</span>.transition_heights.cip645;
+        spec.cip645 = CIP645Spec::new(cip645);
+        spec.eip2935 = height &gt;= <span class="self">self</span>.transition_heights.eip2935;
+        spec.eip7623 = height &gt;= <span class="self">self</span>.transition_heights.eip7623;
         spec.cip_c2_fix = number &gt;= <span class="self">self</span>.transition_heights.cip_c2_fix;
         spec.cancun_opcodes = number &gt;= <span class="self">self</span>.transition_numbers.cancun_opcodes;
-        <span class="kw">if </span>spec.cancun_opcodes {
-            spec.sload_gas = <span class="number">800</span>;
-        }
+        spec.align_evm = height &gt;= <span class="self">self</span>.transition_heights.align_evm &amp;&amp; cip645;
+
+        spec.overwrite_gas_plan_by_cip();
+
+        spec
+    }
+
+    <span class="kw">pub fn </span>consensus_spec(<span class="kw-2">&amp;</span><span class="self">self</span>, height: BlockHeight) -&gt; ConsensusGasSpec {
+        <span class="kw">let </span><span class="kw-2">mut </span>spec = ConsensusGasSpec::genesis_spec();
+        spec.cip1559 = height &gt;= <span class="self">self</span>.transition_heights.cip1559;
+        <span class="kw">let </span>cip645 = height &gt;= <span class="self">self</span>.transition_heights.cip645;
+        spec.cip645 = CIP645Spec::new(cip645);
+
+        spec.align_evm = height &gt;= <span class="self">self</span>.transition_heights.align_evm &amp;&amp; cip645;
+
+        spec.overwrite_gas_plan_by_cip();
+
         spec
     }
 

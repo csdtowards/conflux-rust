@@ -1,6 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cfxcore/executor/src/state/state_object/checkpoints.rs`."><title>checkpoints.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="cfx_executor" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0-nightly (b11fbfbf3 2024-02-03)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
-            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../../cfx_executor/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/execution/executor/src/state/state_object/checkpoints.rs`."><title>checkpoints.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="cfx_executor" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0-nightly (fb898629a 2024-04-21)" data-channel="nightly" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../../cfx_executor/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -174,6 +172,29 @@
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Checkpoints: Defines the account entry type within checkpoint layers and
 //! implements checkpoint maintenance logic.
 
@@ -182,11 +203,11 @@
 
 <span class="kw">use super</span>::{
     <span class="kw">super</span>::checkpoints::CheckpointEntry::{<span class="self">self</span>, Recorded, Unchanged},
-    AccountEntry, GlobalStat, OverlayAccount, State,
+    AccountEntry, AccountEntryWithWarm, GlobalStat, OverlayAccount, State,
 };
 <span class="kw">use crate</span>::{state::checkpoints::CheckpointLayerTrait, unwrap_or_return};
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>AccountCheckpointEntry = CheckpointEntry&lt;AccountEntry&gt;;
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>AccountCheckpointEntry = CheckpointEntry&lt;AccountEntryWithWarm&gt;;
 
 <span class="doccomment">/// Represents a recoverable point within a checkpoint. including
 /// and. The addition of account entries to the checkpoint is lazy; they are
@@ -209,7 +230,7 @@
 
 <span class="kw">impl </span>CheckpointLayerTrait <span class="kw">for </span>CheckpointLayer {
     <span class="kw">type </span>Key = AddressWithSpace;
-    <span class="kw">type </span>Value = AccountEntry;
+    <span class="kw">type </span>Value = AccountEntryWithWarm;
 
     <span class="kw">fn </span>as_hash_map(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;<span class="self">Self</span>::Key, CheckpointEntry&lt;<span class="self">Self</span>::Value&gt;&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.entries
@@ -243,8 +264,8 @@
         // cleared directly, thus, the accounts in state's cache should
         // all discard all checkpoints
         </span><span class="kw">for </span>addr <span class="kw">in </span>cleared_addresses {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(AccountEntry::Cached(<span class="kw-2">ref mut </span>overlay_account, <span class="bool-val">true</span>)) =
-                <span class="self">self</span>.cache.get_mut().get_mut(<span class="kw-2">&amp;</span>addr)
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(AccountEntry::Cached(<span class="kw-2">ref mut </span>overlay_account, _dirty)) =
+                <span class="self">self</span>.cache.get_mut().get_mut(<span class="kw-2">&amp;</span>addr).map(|x| <span class="kw-2">&amp;mut </span>x.entry)
             {
                 overlay_account.clear_checkpoint();
             }
@@ -274,7 +295,7 @@
         <span class="kw">let </span>old_account_entry = <span class="self">self
             </span>.cache
             .get_mut()
-            .insert(address, AccountEntry::new_dirty(account));
+            .insert(address, AccountEntry::new_dirty(account).with_warm(<span class="bool-val">true</span>));
 
         <span class="self">self</span>.checkpoints
             .get_mut()
@@ -287,38 +308,44 @@
     /// this function to incoroprates the old version to the checkpoint in
     /// needed.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>copy_cache_entry_to_checkpoint(
-        <span class="kw-2">&amp;</span><span class="self">self</span>, address: AddressWithSpace, entry_in_cache: <span class="kw-2">&amp;mut </span>AccountEntry,
+        <span class="kw-2">&amp;</span><span class="self">self</span>, address: AddressWithSpace,
+        entry_in_cache: <span class="kw-2">&amp;mut </span>AccountEntryWithWarm,
     ) {
         <span class="self">self</span>.checkpoints
             .write()
             .insert_element(address, |checkpoint_id| {
                 <span class="kw">let </span><span class="kw-2">mut </span>new_entry_in_cache = entry_in_cache
-                    .clone_cache_entry_for_checkpoint(checkpoint_id);
+                    .entry
+                    .clone_cache_entry_for_checkpoint(checkpoint_id)
+                    .with_warm(<span class="bool-val">true</span>);
 
                 std::mem::swap(<span class="kw-2">&amp;mut </span>new_entry_in_cache, entry_in_cache);
                 <span class="comment">// Rename after memswap
-                </span><span class="kw">let </span>old_entry_in_cache = new_entry_in_cache;
+                </span><span class="kw">let </span>entry_to_checkpoint = new_entry_in_cache;
 
-                Recorded(old_entry_in_cache)
+                Recorded(entry_to_checkpoint)
             });
+        <span class="comment">// If there is no checkpoint, the above function will not be executed,
+        // so we need to mark warm bit here.
+        </span>entry_in_cache.warm = <span class="bool-val">true</span>;
     }
 
     <span class="attr">#[cfg(any(test, feature = <span class="string">"testonly_code"</span>))]
     </span><span class="kw">pub fn </span>clear(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="macro">assert!</span>(<span class="self">self</span>.no_checkpoint());
         <span class="self">self</span>.cache.get_mut().clear();
+        <span class="self">self</span>.committed_cache.clear();
         <span class="self">self</span>.global_stat = GlobalStat::loaded(<span class="kw-2">&amp;</span><span class="self">self</span>.db).expect(<span class="string">"no db error"</span>);
     }
 }
 
 <span class="kw">fn </span>apply_checkpoint_layer_to_cache(
     entries: HashMap&lt;AddressWithSpace, AccountCheckpointEntry&gt;,
-    cache: <span class="kw-2">&amp;mut </span>HashMap&lt;AddressWithSpace, AccountEntry&gt;, checkpoint_id: usize,
+    cache: <span class="kw-2">&amp;mut </span>HashMap&lt;AddressWithSpace, AccountEntryWithWarm&gt;,
+    checkpoint_id: usize,
 ) {
     <span class="kw">for </span>(k, v) <span class="kw">in </span>entries.into_iter() {
-        <span class="kw">let </span><span class="kw-2">mut </span>entry_in_cache = <span class="kw">if let </span>Occupied(e) = cache.entry(k) {
-            e
-        } <span class="kw">else </span>{
+        <span class="kw">let </span>Occupied(<span class="kw-2">mut </span>entry_in_cache) = cache.entry(k) <span class="kw">else </span>{
             <span class="comment">// All the entries in checkpoint must be copied from cache by the
             // following function `insert_to_cache` and `clone_to_checkpoint`.
             //
@@ -332,17 +359,34 @@
         };
         <span class="kw">match </span>v {
             Recorded(entry_in_checkpoint) =&gt; {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(acc) = entry_in_cache.get_mut().dirty_account_mut()
-                {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(acc) = entry_in_cache.get_mut().account_mut() {
                     acc.revert_checkpoint(checkpoint_id);
                 }
                 <span class="kw-2">*</span>entry_in_cache.get_mut() = entry_in_checkpoint;
             }
+
             Unchanged =&gt; {
-                <span class="comment">// If the AccountEntry in cache does not have a dirty bit, we
-                // can keep it in cache to avoid an duplicate db load.
-                </span><span class="kw">if </span>entry_in_cache.get().is_dirty() {
+                <span class="comment">// Here we have an optimization: if a checkpoint entry was
+                // Unchanged and the corresponding cache entry
+                // was clean (i.e., its dirty bit was not set),
+                // the cache entry would be retained rather than
+                // removed by checkpoint semantics.
+                //
+                // A theoretical concern arose: if a CheckpointEntry is
+                // Unchanged, its cache entry is clean, and the
+                // account is absent from the database (DbAbsent), the output of
+                // `State::code_hash` might differ with and
+                // without this optimization.
+                //
+                // However, this scenario is impossible under the current
+                // implementation. In this system, DbAbsent and
+                // Recorded() are treated as distinct values, and transitioning
+                // from one to the other would require the dirty flag to be set.
+
+                </span><span class="kw">if </span>entry_in_cache.get().entry.is_dirty() {
                     entry_in_cache.remove();
+                } <span class="kw">else </span>{
+                    entry_in_cache.get_mut().warm = <span class="bool-val">false</span>;
                 }
             }
         }

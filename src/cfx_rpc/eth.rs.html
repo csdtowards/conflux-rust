@@ -1,6 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rpc/rpc-eth-impl/src/eth.rs`."><title>eth.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cfx_rpc" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0-nightly (b11fbfbf3 2024-02-03)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
-            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../cfx_rpc/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rpc/rpc-eth-impl/src/eth.rs`."><title>eth.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cfx_rpc" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0-nightly (fb898629a 2024-04-21)" data-channel="nightly" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../cfx_rpc/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -1511,23 +1509,6 @@
 <a href="#1509" id="1509">1509</a>
 <a href="#1510" id="1510">1510</a>
 <a href="#1511" id="1511">1511</a>
-<a href="#1512" id="1512">1512</a>
-<a href="#1513" id="1513">1513</a>
-<a href="#1514" id="1514">1514</a>
-<a href="#1515" id="1515">1515</a>
-<a href="#1516" id="1516">1516</a>
-<a href="#1517" id="1517">1517</a>
-<a href="#1518" id="1518">1518</a>
-<a href="#1519" id="1519">1519</a>
-<a href="#1520" id="1520">1520</a>
-<a href="#1521" id="1521">1521</a>
-<a href="#1522" id="1522">1522</a>
-<a href="#1523" id="1523">1523</a>
-<a href="#1524" id="1524">1524</a>
-<a href="#1525" id="1525">1525</a>
-<a href="#1526" id="1526">1526</a>
-<a href="#1527" id="1527">1527</a>
-<a href="#1528" id="1528">1528</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::helpers::{FeeHistoryCache, MAX_FEE_HISTORY_CACHE_BLOCK_COUNT};
 <span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>cfx_execute_helper::estimation::EstimateRequest;
@@ -1541,7 +1522,7 @@
 <span class="kw">use </span>cfx_rpc_eth_api::EthApiServer;
 <span class="kw">use </span>cfx_rpc_eth_types::{
     AccessListResult, AccountOverride, AccountPendingTransactions, Block,
-    BlockNumber <span class="kw">as </span>BlockId, BlockOverrides, Bundle, EthCallResponse,
+    BlockNumber <span class="kw">as </span>BlockId, BlockOverrides, Bundle, Error, EthCallResponse,
     EthRpcLogFilter, EthRpcLogFilter <span class="kw">as </span>Filter, EvmOverrides, FeeHistory,
     Header, Log, Receipt, RpcStateOverride, SimulatePayload, SimulatedBlock,
     StateContext, SyncInfo, SyncStatus, Transaction, TransactionRequest,
@@ -1563,15 +1544,14 @@
 <span class="kw">use </span>cfx_vm_types::Error <span class="kw">as </span>VmError;
 <span class="kw">use </span>cfxcore::{
     errors::{Error <span class="kw">as </span>CoreError, <span class="prelude-ty">Result </span><span class="kw">as </span>CoreResult},
-    ConsensusGraph, ConsensusGraphTrait, SharedConsensusGraph,
-    SharedSynchronizationService, SharedTransactionPool,
+    ConsensusGraph, SharedConsensusGraph, SharedSynchronizationService,
+    SharedTransactionPool,
 };
 <span class="kw">use </span>jsonrpc_core::Error <span class="kw">as </span>RpcError;
 <span class="kw">use </span>jsonrpsee::{core::RpcResult, types::ErrorObjectOwned};
 <span class="kw">use </span>primitives::{
-    filter::LogFilter, receipt::EVM_SPACE_SUCCESS, Action,
-    BlockHashOrEpochNumber, EpochNumber, StorageKey, StorageValue,
-    TransactionStatus, TransactionWithSignature,
+    filter::LogFilter, receipt::EVM_SPACE_SUCCESS, Action, EpochNumber,
+    StorageKey, StorageValue, TransactionStatus, TransactionWithSignature,
 };
 <span class="kw">use </span>rustc_hex::ToHex;
 <span class="kw">use </span>solidity_abi::string_revert_reason_decode;
@@ -1609,12 +1589,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>consensus_graph(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ConsensusGraph {
-        <span class="self">self</span>.consensus
-            .as_any()
-            .downcast_ref::&lt;ConsensusGraph&gt;()
-            .expect(<span class="string">"downcast should succeed"</span>)
-    }
+    <span class="kw">pub fn </span>consensus_graph(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ConsensusGraph { <span class="kw-2">&amp;</span><span class="self">self</span>.consensus }
 
     <span class="kw">pub fn </span>tx_pool(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SharedTransactionPool { <span class="kw-2">&amp;</span><span class="self">self</span>.tx_pool }
 
@@ -1636,6 +1611,32 @@
         <span class="self">self</span>.consensus_graph()
             .get_phantom_block_by_hash(hash, <span class="bool-val">false</span>)<span class="question-mark">?
             </span>.ok_or(<span class="string">"Specified block header does not exist"</span>.into())
+    }
+
+    <span class="kw">fn </span>convert_block_number_to_epoch_number(
+        <span class="kw-2">&amp;</span><span class="self">self</span>, block_number: BlockNumber,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;EpochNumber, String&gt; {
+        <span class="kw">if let </span>BlockNumber::Hash { hash, .. } = block_number {
+            <span class="kw">let </span>consensus_graph = <span class="self">self</span>.consensus_graph();
+            <span class="kw">match </span>consensus_graph.get_block_epoch_number(<span class="kw-2">&amp;</span>hash) {
+                <span class="prelude-val">Some</span>(num) =&gt; {
+                    <span class="comment">// do not expose non-pivot blocks in eth RPC
+                    </span><span class="kw">let </span>pivot = consensus_graph
+                        .get_block_hashes_by_epoch(EpochNumber::Number(num))<span class="question-mark">?
+                        </span>.last()
+                        .cloned();
+
+                    <span class="kw">if </span><span class="prelude-val">Some</span>(hash) != pivot {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Block {} not found"</span>, hash));
+                    }
+
+                    <span class="prelude-val">Ok</span>(EpochNumber::Number(num))
+                }
+                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Block {} not found"</span>, hash)),
+            }
+        } <span class="kw">else </span>{
+            block_number.try_into().map_err(|e: Error| e.to_string())
+        }
     }
 
     <span class="kw">pub fn </span>exec_transaction(
@@ -1688,27 +1689,9 @@
         };
         <span class="kw">let </span>evm_overrides = EvmOverrides::new(state_overrides, block_overrides);
 
-        <span class="kw">let </span>epoch = <span class="kw">match </span>block_number_or_hash.unwrap_or_default() {
-            BlockNumber::Hash { hash, .. } =&gt; {
-                <span class="kw">match </span>consensus_graph.get_block_epoch_number(<span class="kw-2">&amp;</span>hash) {
-                    <span class="prelude-val">Some</span>(e) =&gt; {
-                        <span class="comment">// do not expose non-pivot blocks in eth RPC
-                        </span><span class="kw">let </span>pivot = consensus_graph
-                            .get_block_hashes_by_epoch(EpochNumber::Number(e))<span class="question-mark">?
-                            </span>.last()
-                            .cloned();
-
-                        <span class="kw">if </span><span class="prelude-val">Some</span>(hash) != pivot {
-                            <span class="macro">bail!</span>(<span class="string">"Block {:?} not found"</span>, hash);
-                        }
-
-                        EpochNumber::Number(e)
-                    }
-                    <span class="prelude-val">None </span>=&gt; <span class="macro">bail!</span>(<span class="string">"Block {:?} not found"</span>, hash),
-                }
-            }
-            epoch =&gt; epoch.try_into()<span class="question-mark">?</span>,
-        };
+        <span class="kw">let </span>epoch = <span class="self">self</span>.convert_block_number_to_epoch_number(
+            block_number_or_hash.unwrap_or_default(),
+        )<span class="question-mark">?</span>;
 
         <span class="comment">// if gas_price and gas is zero, it is considered as not set
         </span>request.unset_zero_gas_and_price();
@@ -1738,20 +1721,25 @@
                 expected,
                 got,
             )) =&gt; <span class="macro">bail!</span>(invalid_input_rpc_err(
-                <span class="macro">format! </span>{<span class="string">"nonce is too old expected {:?} got {:?}"</span>, expected, got}
+                <span class="macro">format!</span> {<span class="string">"nonce is too old expected {:?} got {:?}"</span>, expected, got}
             )),
             ExecutionOutcome::NotExecutedDrop(
                 TxDropError::InvalidRecipientAddress(recipient),
             ) =&gt; <span class="macro">bail!</span>(invalid_input_rpc_err(
-                <span class="macro">format! </span>{<span class="string">"invalid recipient address {:?}"</span>, recipient}
+                <span class="macro">format!</span> {<span class="string">"invalid recipient address {:?}"</span>, recipient}
             )),
             ExecutionOutcome::NotExecutedDrop(
                 TxDropError::NotEnoughGasLimit { expected, got },
             ) =&gt; <span class="macro">bail!</span>(invalid_input_rpc_err(
-                <span class="macro">format! </span>{<span class="string">"not enough gas limit with respected to tx size: expected {:?} got {:?}"</span>, expected, got}
+                <span class="macro">format!</span> {<span class="string">"not enough gas limit with respected to tx size: expected {:?} got {:?}"</span>, expected, got}
+            )),
+            ExecutionOutcome::NotExecutedDrop(TxDropError::SenderWithCode(
+                address,
+            )) =&gt; <span class="macro">bail!</span>(invalid_input_rpc_err(
+                <span class="macro">format!</span> {<span class="string">"tx sender has contract code: {:?}"</span>, address}
             )),
             ExecutionOutcome::NotExecutedToReconsiderPacking(e) =&gt; {
-                <span class="macro">bail!</span>(invalid_input_rpc_err(<span class="macro">format! </span>{<span class="string">"err: {:?}"</span>, e}))
+                <span class="macro">bail!</span>(invalid_input_rpc_err(<span class="macro">format!</span> {<span class="string">"err: {:?}"</span>, e}))
             }
             ExecutionOutcome::ExecutionErrorBumpNonce(
                 ExecutionError::NotEnoughCash { .. },
@@ -1759,6 +1747,15 @@
             ) =&gt; {
                 <span class="macro">bail!</span>(RpcError::from(
                     RpcInvalidTransactionError::InsufficientFunds
+                ))
+            }
+            ExecutionOutcome::ExecutionErrorBumpNonce(
+                ExecutionError::NonceOverflow(addr),
+                _executed,
+            ) =&gt; {
+                <span class="macro">bail!</span>(geth_call_execution_error(
+                    <span class="macro">format!</span>(<span class="string">"address nonce overflow: {})"</span>, addr),
+                    <span class="string">""</span>.into()
                 ))
             }
             ExecutionOutcome::ExecutionErrorBumpNonce(
@@ -1910,7 +1907,7 @@
             from: tx.sender().address,
             to: <span class="kw">match </span>tx.action() {
                 Action::Create =&gt; <span class="prelude-val">None</span>,
-                Action::Call(addr) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>addr),
+                Action::Call(addr) =&gt; <span class="prelude-val">Some</span>(addr),
             },
             block_number: block_height,
             cumulative_gas_used: receipt.accumulated_gas_used,
@@ -1951,25 +1948,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>, block_num: BlockNumber,
     ) -&gt; CoreResult&lt;Vec&lt;Receipt&gt;&gt; {
         <span class="kw">let </span>b = {
-            <span class="comment">// keep read lock to ensure consistent view
-            </span><span class="kw">let </span>_inner = <span class="self">self</span>.consensus_graph().inner.read();
-
-            <span class="kw">let </span>phantom_block = <span class="kw">match </span>block_num {
-                BlockNumber::Hash { hash, .. } =&gt; <span class="self">self
-                    </span>.consensus_graph()
-                    .get_phantom_block_by_hash(
-                        <span class="kw-2">&amp;</span>hash, <span class="bool-val">false</span>, <span class="comment">/* include_traces */
-                    </span>)
-                    .map_err(RpcError::invalid_params)<span class="question-mark">?</span>,
-                <span class="kw">_ </span>=&gt; <span class="self">self
-                    </span>.consensus_graph()
-                    .get_phantom_block_by_number(
-                        block_num.try_into()<span class="question-mark">?</span>,
-                        <span class="prelude-val">None</span>,
-                        <span class="bool-val">false</span>, <span class="comment">/* include_traces */
-                    </span>)
-                    .map_err(RpcError::invalid_params)<span class="question-mark">?</span>,
-            };
+            <span class="kw">let </span>phantom_block = <span class="self">self</span>.phantom_block_by_number(block_num)<span class="question-mark">?</span>;
 
             <span class="kw">match </span>phantom_block {
                 <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(unknown_block().into()),
@@ -2074,7 +2053,8 @@
     <span class="kw">pub fn </span>user_balance(
         <span class="kw-2">&amp;</span><span class="self">self</span>, address: H160, num: <span class="prelude-ty">Option</span>&lt;BlockNumber&gt;,
     ) -&gt; CoreResult&lt;U256&gt; {
-        <span class="kw">let </span>epoch_num = num.unwrap_or_default().try_into()<span class="question-mark">?</span>;
+        <span class="kw">let </span>epoch_num =
+            <span class="self">self</span>.convert_block_number_to_epoch_number(num.unwrap_or_default())<span class="question-mark">?</span>;
         <span class="kw">let </span>state_db = <span class="self">self
             </span>.consensus
             .get_eth_state_db_by_epoch_number(epoch_num, <span class="string">"num"</span>)<span class="question-mark">?</span>;
@@ -2088,7 +2068,9 @@
     <span class="kw">pub fn </span>storage_at(
         <span class="kw-2">&amp;</span><span class="self">self</span>, address: H160, position: U256, block_num: <span class="prelude-ty">Option</span>&lt;BlockNumber&gt;,
     ) -&gt; CoreResult&lt;H256&gt; {
-        <span class="kw">let </span>epoch_num = block_num.unwrap_or_default().try_into()<span class="question-mark">?</span>;
+        <span class="kw">let </span>epoch_num = <span class="self">self</span>.convert_block_number_to_epoch_number(
+            block_num.unwrap_or_default(),
+        )<span class="question-mark">?</span>;
 
         <span class="kw">let </span>state_db = <span class="self">self
             </span>.consensus
@@ -2113,18 +2095,10 @@
     <span class="kw">pub fn </span>phantom_block_by_hash(
         <span class="kw-2">&amp;</span><span class="self">self</span>, hash: H256,
     ) -&gt; CoreResult&lt;<span class="prelude-ty">Option</span>&lt;PhantomBlock&gt;&gt; {
-        <span class="kw">let </span>phantom_block = {
-            <span class="comment">// keep read lock to ensure consistent view
-            </span><span class="kw">let </span>_inner = <span class="self">self</span>.consensus_graph().inner.read();
-
-            <span class="self">self</span>.consensus_graph()
-                .get_phantom_block_by_hash(
-                    <span class="kw-2">&amp;</span>hash, <span class="bool-val">false</span>, <span class="comment">/* include_traces */
-                </span>)
-                .map_err(RpcError::invalid_params)<span class="question-mark">?
-        </span>};
-
-        <span class="prelude-val">Ok</span>(phantom_block)
+        <span class="self">self</span>.phantom_block_by_number(BlockNumber::Hash {
+            hash,
+            require_canonical: <span class="prelude-val">None</span>,
+        })
     }
 
     <span class="kw">pub fn </span>phantom_block_by_number(
@@ -2134,14 +2108,25 @@
             <span class="comment">// keep read lock to ensure consistent view
             </span><span class="kw">let </span>_inner = <span class="self">self</span>.consensus_graph().inner.read();
 
-            <span class="self">self</span>.consensus_graph()
-                .get_phantom_block_by_number(
-                    block_num.try_into()<span class="question-mark">?</span>,
-                    <span class="prelude-val">None</span>,
-                    <span class="bool-val">false</span>, <span class="comment">/* include_traces */
-                </span>)
-                .map_err(RpcError::invalid_params)<span class="question-mark">?
-        </span>};
+            <span class="kw">match </span>block_num {
+                BlockNumber::Hash { hash, .. } =&gt; {
+                    <span class="self">self</span>.consensus_graph()
+                        .get_phantom_block_by_hash(
+                            <span class="kw-2">&amp;</span>hash, <span class="bool-val">false</span>, <span class="comment">/* include_traces */
+                        </span>)
+                        .map_err(RpcError::invalid_params)<span class="question-mark">?
+                </span>}
+                <span class="kw">_ </span>=&gt; {
+                    <span class="self">self</span>.consensus_graph()
+                        .get_phantom_block_by_number(
+                            block_num.try_into()<span class="question-mark">?</span>,
+                            <span class="prelude-val">None</span>,
+                            <span class="bool-val">false</span>, <span class="comment">/* include_traces */
+                        </span>)
+                        .map_err(RpcError::invalid_params)<span class="question-mark">?
+                </span>}
+            }
+        };
 
         <span class="prelude-val">Ok</span>(phantom_block)
     }
@@ -2175,15 +2160,11 @@
             <span class="prelude-val">Some</span>(BlockNumber::Pending) =&gt; {
                 <span class="self">self</span>.tx_pool.get_next_nonce(<span class="kw-2">&amp;</span>address.with_evm_space())
             }
-            <span class="kw">_ </span>=&gt; {
-                <span class="kw">let </span>num = num.unwrap_or_default().try_into()<span class="question-mark">?</span>;
-
-                <span class="self">self</span>.consensus_graph().next_nonce(
-                    address.with_evm_space(),
-                    BlockHashOrEpochNumber::EpochNumber(num),
-                    <span class="string">"num"</span>,
-                )<span class="question-mark">?
-            </span>}
+            <span class="kw">_ </span>=&gt; <span class="self">self</span>.consensus_graph().next_nonce(
+                address.with_evm_space(),
+                num.unwrap_or_default().into(),
+                <span class="string">"num"</span>,
+            )<span class="question-mark">?</span>,
         };
 
         <span class="prelude-val">Ok</span>(nonce)
@@ -2192,16 +2173,7 @@
     <span class="kw">pub fn </span>block_transaction_count_by_hash(
         <span class="kw-2">&amp;</span><span class="self">self</span>, hash: H256,
     ) -&gt; CoreResult&lt;<span class="prelude-ty">Option</span>&lt;U256&gt;&gt; {
-        <span class="kw">let </span>phantom_block = {
-            <span class="comment">// keep read lock to ensure consistent view
-            </span><span class="kw">let </span>_inner = <span class="self">self</span>.consensus_graph().inner.read();
-
-            <span class="self">self</span>.consensus_graph()
-                .get_phantom_block_by_hash(
-                    <span class="kw-2">&amp;</span>hash, <span class="bool-val">false</span>, <span class="comment">/* include_traces */
-                </span>)
-                .map_err(RpcError::invalid_params)<span class="question-mark">?
-        </span>};
+        <span class="kw">let </span>phantom_block = <span class="self">self</span>.phantom_block_by_hash(hash)<span class="question-mark">?</span>;
 
         <span class="kw">match </span>phantom_block {
             <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
@@ -2212,18 +2184,7 @@
     <span class="kw">pub fn </span>block_transaction_count_by_number(
         <span class="kw-2">&amp;</span><span class="self">self</span>, block_num: BlockNumber,
     ) -&gt; CoreResult&lt;<span class="prelude-ty">Option</span>&lt;U256&gt;&gt; {
-        <span class="kw">let </span>phantom_block = {
-            <span class="comment">// keep read lock to ensure consistent view
-            </span><span class="kw">let </span>_inner = <span class="self">self</span>.consensus_graph().inner.read();
-
-            <span class="self">self</span>.consensus_graph()
-                .get_phantom_block_by_number(
-                    block_num.try_into()<span class="question-mark">?</span>,
-                    <span class="prelude-val">None</span>,
-                    <span class="bool-val">false</span>, <span class="comment">/* include_traces */
-                </span>)
-                .map_err(RpcError::invalid_params)<span class="question-mark">?
-        </span>};
+        <span class="kw">let </span>phantom_block = <span class="self">self</span>.phantom_block_by_number(block_num)<span class="question-mark">?</span>;
 
         <span class="kw">match </span>phantom_block {
             <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
@@ -2254,18 +2215,19 @@
     <span class="kw">pub fn </span>block_uncles_count_by_number(
         <span class="kw-2">&amp;</span><span class="self">self</span>, block_num: BlockNumber,
     ) -&gt; CoreResult&lt;<span class="prelude-ty">Option</span>&lt;U256&gt;&gt; {
-        <span class="kw">let </span>maybe_epoch = <span class="self">self
-            </span>.consensus
-            .get_block_hashes_by_epoch(block_num.try_into()<span class="question-mark">?</span>)
-            .ok();
+        <span class="kw">let </span>epoch_num = <span class="self">self</span>.convert_block_number_to_epoch_number(block_num)<span class="question-mark">?</span>;
+        <span class="kw">let </span>maybe_epoch =
+            <span class="self">self</span>.consensus.get_block_hashes_by_epoch(epoch_num).ok();
 
         <span class="prelude-val">Ok</span>(maybe_epoch.map(|<span class="kw">_</span>| <span class="number">0</span>.into()))
     }
 
     <span class="kw">pub fn </span>code_at(
-        <span class="kw-2">&amp;</span><span class="self">self</span>, address: H160, epoch_num: <span class="prelude-ty">Option</span>&lt;BlockNumber&gt;,
+        <span class="kw-2">&amp;</span><span class="self">self</span>, address: H160, block_num: <span class="prelude-ty">Option</span>&lt;BlockNumber&gt;,
     ) -&gt; CoreResult&lt;Bytes&gt; {
-        <span class="kw">let </span>epoch_num = epoch_num.unwrap_or_default().try_into()<span class="question-mark">?</span>;
+        <span class="kw">let </span>epoch_num = <span class="self">self</span>.convert_block_number_to_epoch_number(
+            block_num.unwrap_or_default(),
+        )<span class="question-mark">?</span>;
 
         <span class="kw">let </span>state_db = <span class="self">self
             </span>.consensus
@@ -2315,9 +2277,11 @@
         <span class="comment">// keep read lock to ensure consistent view
         </span><span class="kw">let </span>_consensus = <span class="self">self</span>.consensus_graph().inner.read();
 
+        <span class="kw">let </span>epoch_num =
+            <span class="self">self</span>.convert_block_number_to_epoch_number(newest_block)<span class="question-mark">?</span>;
         <span class="kw">let </span>newest_height: u64 = <span class="self">self
             </span>.consensus_graph()
-            .get_height_from_epoch_number(newest_block.clone().try_into()<span class="question-mark">?</span>)
+            .get_height_from_epoch_number(epoch_num)
             .map_err(RpcError::invalid_params)<span class="question-mark">?</span>;
 
         <span class="kw">if </span>newest_block == BlockNumber::Latest {
@@ -2394,7 +2358,7 @@
     ) -&gt; CoreResult&lt;<span class="prelude-ty">Option</span>&lt;Transaction&gt;&gt; {
         <span class="kw">let </span>tx_index = <span class="kw">match </span><span class="self">self
             </span>.consensus
-            .get_data_manager()
+            .data_manager()
             .transaction_index_by_hash(<span class="kw-2">&amp;</span>hash, <span class="bool-val">false </span><span class="comment">/* update_cache */</span>)
         {
             <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.get_tx_from_txpool(hash)),
@@ -2448,7 +2412,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>, tx_hash: H256,
     ) -&gt; CoreResult&lt;<span class="prelude-ty">Option</span>&lt;Receipt&gt;&gt; {
         <span class="kw">let </span>tx_index =
-            <span class="kw">match </span><span class="self">self</span>.consensus.get_data_manager().transaction_index_by_hash(
+            <span class="kw">match </span><span class="self">self</span>.consensus.data_manager().transaction_index_by_hash(
                 <span class="kw-2">&amp;</span>tx_hash, <span class="bool-val">false</span>, <span class="comment">/* update_cache */
             </span>) {
                 <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),

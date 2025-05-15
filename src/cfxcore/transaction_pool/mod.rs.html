@@ -1,6 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cfxcore/core/src/transaction_pool/mod.rs`."><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="cfxcore" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0-nightly (b11fbfbf3 2024-02-03)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
-            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../cfxcore/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cfxcore/core/src/transaction_pool/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="cfxcore" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0-nightly (fb898629a 2024-04-21)" data-channel="nightly" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../cfxcore/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -1210,48 +1208,26 @@
 <a href="#1208" id="1208">1208</a>
 <a href="#1209" id="1209">1209</a>
 <a href="#1210" id="1210">1210</a>
-<a href="#1211" id="1211">1211</a>
-<a href="#1212" id="1212">1212</a>
-<a href="#1213" id="1213">1213</a>
-<a href="#1214" id="1214">1214</a>
-<a href="#1215" id="1215">1215</a>
-<a href="#1216" id="1216">1216</a>
-<a href="#1217" id="1217">1217</a>
-<a href="#1218" id="1218">1218</a>
-<a href="#1219" id="1219">1219</a>
-<a href="#1220" id="1220">1220</a>
-<a href="#1221" id="1221">1221</a>
-<a href="#1222" id="1222">1222</a>
-<a href="#1223" id="1223">1223</a>
-<a href="#1224" id="1224">1224</a>
-<a href="#1225" id="1225">1225</a>
-<a href="#1226" id="1226">1226</a>
-<a href="#1227" id="1227">1227</a>
-<a href="#1228" id="1228">1228</a>
-<a href="#1229" id="1229">1229</a>
-<a href="#1230" id="1230">1230</a>
-<a href="#1231" id="1231">1231</a>
-<a href="#1232" id="1232">1232</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2019 Conflux Foundation. All rights reserved.
 // Conflux is free software and distributed under GNU General Public License.
 // See http://www.gnu.org/licenses/
 
-</span><span class="kw">mod </span>account_cache;
+</span><span class="kw">mod </span>deferred_pool;
 <span class="kw">mod </span>error;
 <span class="kw">mod </span>garbage_collector;
 <span class="kw">mod </span>nonce_pool;
+<span class="kw">mod </span>pool_metrics;
+<span class="kw">mod </span>state_provider;
 <span class="kw">mod </span>transaction_pool_inner;
 
-<span class="kw">pub use </span><span class="self">self</span>::transaction_pool_inner::TransactionStatus;
+<span class="kw">pub use </span>error::TransactionPoolError;
+
 <span class="kw">use crate</span>::{
     block_data_manager::BlockDataManager,
     consensus::BestInformation,
-    transaction_pool::{
-        nonce_pool::TxWithReadyInfo, transaction_pool_inner::PendingReason,
-    },
+    transaction_pool::{nonce_pool::TxWithReadyInfo, pool_metrics::<span class="kw-2">*</span>},
     verification::{VerificationConfig, VerifyTxLocalMode, VerifyTxMode},
 };
-<span class="kw">use </span>account_cache::AccountCache;
 <span class="kw">use </span>cfx_executor::{
     machine::Machine, spec::TransitionsEpochHeight, state::State,
 };
@@ -1263,27 +1239,26 @@
     },
     consensus_internal::ELASTICITY_MULTIPLIER,
 };
+<span class="kw">use </span>cfx_rpc_cfx_types::{PendingReason, TransactionStatus};
 <span class="kw">use </span>cfx_statedb::{<span class="prelude-ty">Result </span><span class="kw">as </span>StateDbResult, StateDb};
 <span class="kw">use </span>cfx_storage::{StateIndex, StorageManagerTrait};
 <span class="kw">use </span>cfx_types::{
     AddressWithSpace <span class="kw">as </span>Address, AllChainID, Space, SpaceMap, H256, U256,
 };
 <span class="kw">use </span>cfx_vm_types::Spec;
-<span class="kw">pub use </span>error::TransactionPoolError;
+
 <span class="kw">use </span>malloc_size_of::{MallocSizeOf, MallocSizeOfOps};
-<span class="kw">use </span>metrics::{
-    register_meter_with_group, Gauge, GaugeUsize, Lock, Meter, MeterTimer,
-    RwLockExtensions,
-};
+<span class="kw">use </span>metrics::{MeterTimer, RwLockExtensions};
 <span class="kw">use </span>parking_lot::{Mutex, RwLock};
 <span class="kw">use </span>primitives::{
     block::BlockHeight,
     block_header::{compute_next_price, compute_next_price_tuple},
     Account, SignedTransaction, Transaction, TransactionWithSignature,
 };
+<span class="kw">use </span>state_provider::StateProvider;
 <span class="kw">use </span>std::{
     cmp::{max, min},
-    collections::{hash_map::HashMap, BTreeSet},
+    collections::{hash_map::HashMap, BTreeMap, BTreeSet},
     mem,
     ops::DerefMut,
     sync::{
@@ -1292,39 +1267,6 @@
     },
 };
 <span class="kw">use </span>transaction_pool_inner::TransactionPoolInner;
-
-<span class="macro">lazy_static! </span>{
-    <span class="kw">static </span><span class="kw-2">ref </span>TX_POOL_DEFERRED_GAUGE: Arc&lt;<span class="kw">dyn </span>Gauge&lt;usize&gt;&gt; =
-        GaugeUsize::register_with_group(<span class="string">"txpool"</span>, <span class="string">"stat_deferred_txs"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>TX_POOL_UNPACKED_GAUGE: Arc&lt;<span class="kw">dyn </span>Gauge&lt;usize&gt;&gt; =
-        GaugeUsize::register_with_group(<span class="string">"txpool"</span>, <span class="string">"stat_unpacked_txs"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>TX_POOL_READY_GAUGE: Arc&lt;<span class="kw">dyn </span>Gauge&lt;usize&gt;&gt; =
-        GaugeUsize::register_with_group(<span class="string">"txpool"</span>, <span class="string">"stat_ready_accounts"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>INSERT_TPS: Arc&lt;<span class="kw">dyn </span>Meter&gt; =
-        register_meter_with_group(<span class="string">"txpool"</span>, <span class="string">"insert_tps"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>INSERT_TXS_TPS: Arc&lt;<span class="kw">dyn </span>Meter&gt; =
-        register_meter_with_group(<span class="string">"txpool"</span>, <span class="string">"insert_txs_tps"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>INSERT_TXS_SUCCESS_TPS: Arc&lt;<span class="kw">dyn </span>Meter&gt; =
-        register_meter_with_group(<span class="string">"txpool"</span>, <span class="string">"insert_txs_success_tps"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>INSERT_TXS_FAILURE_TPS: Arc&lt;<span class="kw">dyn </span>Meter&gt; =
-        register_meter_with_group(<span class="string">"txpool"</span>, <span class="string">"insert_txs_failure_tps"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>TX_POOL_INSERT_TIMER: Arc&lt;<span class="kw">dyn </span>Meter&gt; =
-        register_meter_with_group(<span class="string">"timer"</span>, <span class="string">"tx_pool::insert_new_tx"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>TX_POOL_VERIFY_TIMER: Arc&lt;<span class="kw">dyn </span>Meter&gt; =
-        register_meter_with_group(<span class="string">"timer"</span>, <span class="string">"tx_pool::verify"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>TX_POOL_GET_STATE_TIMER: Arc&lt;<span class="kw">dyn </span>Meter&gt; =
-        register_meter_with_group(<span class="string">"timer"</span>, <span class="string">"tx_pool::get_state"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>INSERT_TXS_QUOTA_LOCK: Lock =
-        Lock::register(<span class="string">"txpool_insert_txs_quota_lock"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>INSERT_TXS_ENQUEUE_LOCK: Lock =
-        Lock::register(<span class="string">"txpool_insert_txs_enqueue_lock"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>PACK_TRANSACTION_LOCK: Lock =
-        Lock::register(<span class="string">"txpool_pack_transactions"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>NOTIFY_BEST_INFO_LOCK: Lock =
-        Lock::register(<span class="string">"txpool_notify_best_info"</span>);
-    <span class="kw">static </span><span class="kw-2">ref </span>NOTIFY_MODIFIED_LOCK: Lock =
-        Lock::register(<span class="string">"txpool_notify_modified_info"</span>);
-}
 
 <span class="kw">pub struct </span>TxPoolConfig {
     <span class="kw">pub </span>capacity: usize,
@@ -1599,12 +1541,11 @@
         <span class="comment">// The sponsor status may have changed, check again.
         // This is not applied to the tx pool state because this check is
         // only triggered on the RPC server.
-        </span><span class="kw">let </span>account_cache = <span class="self">self</span>.get_best_state_account_cache();
+        </span><span class="kw">let </span>state = <span class="self">self</span>.get_best_state_provider();
 
         <span class="kw">let </span>(sponsored_gas, sponsored_storage) =
-            inner.get_sponsored_gas_and_storage(<span class="kw-2">&amp;</span>account_cache, <span class="kw-2">&amp;</span>first_tx)<span class="question-mark">?</span>;
-        <span class="kw">let </span>(<span class="kw">_</span>, balance) =
-            account_cache.get_nonce_and_balance(<span class="kw-2">&amp;</span>first_tx.sender())<span class="question-mark">?</span>;
+            inner.get_sponsored_gas_and_storage(<span class="kw-2">&amp;</span>state, <span class="kw-2">&amp;</span>first_tx)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, balance) = state.get_nonce_and_balance(<span class="kw-2">&amp;</span>first_tx.sender())<span class="question-mark">?</span>;
         <span class="kw">let </span>tx_cost = TxWithReadyInfo::new(
             first_tx.clone(),
             <span class="bool-val">false</span>,
@@ -1638,8 +1579,8 @@
     <span class="kw">pub fn </span>get_state_account_info(
         <span class="kw-2">&amp;</span><span class="self">self</span>, address: <span class="kw-2">&amp;</span>Address,
     ) -&gt; StateDbResult&lt;(U256, U256)&gt; {
-        <span class="kw">let </span>account_cache = <span class="self">self</span>.get_best_state_account_cache();
-        account_cache.get_nonce_and_balance(address)
+        <span class="kw">let </span>state = <span class="self">self</span>.get_best_state_provider();
+        state.get_nonce_and_balance(address)
     }
 
     <span class="kw">pub fn </span>calc_half_block_gas_limit(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;U256&gt; {
@@ -1714,7 +1655,7 @@
         // key after basic verification.
         </span><span class="kw">match </span><span class="self">self</span>.data_man.recover_unsigned_tx(<span class="kw-2">&amp;</span>transactions) {
             <span class="prelude-val">Ok</span>(signed_trans) =&gt; {
-                <span class="kw">let </span>account_cache = <span class="self">self</span>.get_best_state_account_cache();
+                <span class="kw">let </span>state = <span class="self">self</span>.get_best_state_provider();
                 <span class="kw">let </span><span class="kw-2">mut </span>inner =
                     <span class="self">self</span>.inner.write_with_metric(<span class="kw-2">&amp;</span>INSERT_TXS_ENQUEUE_LOCK);
                 <span class="kw">let </span><span class="kw-2">mut </span>to_prop = <span class="self">self</span>.to_propagate_trans.write();
@@ -1726,7 +1667,7 @@
 
                     <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.add_transaction_with_readiness_check(
                         <span class="kw-2">&amp;mut *</span>inner,
-                        <span class="kw-2">&amp;</span>account_cache,
+                        <span class="kw-2">&amp;</span>state,
                         tx.clone(),
                         <span class="bool-val">false</span>,
                         <span class="bool-val">false</span>,
@@ -1844,7 +1785,7 @@
         // already signed.
 
         </span>{
-            <span class="kw">let </span>account_cache = <span class="self">self</span>.get_best_state_account_cache();
+            <span class="kw">let </span>state = <span class="self">self</span>.get_best_state_provider();
             <span class="kw">let </span><span class="kw-2">mut </span>inner =
                 <span class="self">self</span>.inner.write_with_metric(<span class="kw-2">&amp;</span>INSERT_TXS_ENQUEUE_LOCK);
             <span class="kw">let </span><span class="kw-2">mut </span>to_prop = <span class="self">self</span>.to_propagate_trans.write();
@@ -1852,7 +1793,7 @@
             <span class="kw">for </span>tx <span class="kw">in </span>signed_transactions {
                 <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.add_transaction_with_readiness_check(
                     <span class="kw-2">&amp;mut *</span>inner,
-                    <span class="kw-2">&amp;</span>account_cache,
+                    <span class="kw-2">&amp;</span>state,
                     tx.clone(),
                     <span class="bool-val">false</span>,
                     <span class="bool-val">false</span>,
@@ -1923,11 +1864,11 @@
     // the packed tag provided
     // if force tag is true, the replacement in nonce pool must be happened
     </span><span class="kw">pub fn </span>add_transaction_with_readiness_check(
-        <span class="kw-2">&amp;</span><span class="self">self</span>, inner: <span class="kw-2">&amp;mut </span>TransactionPoolInner, account_cache: <span class="kw-2">&amp;</span>AccountCache,
+        <span class="kw-2">&amp;</span><span class="self">self</span>, inner: <span class="kw-2">&amp;mut </span>TransactionPoolInner, state: <span class="kw-2">&amp;</span>StateProvider,
         transaction: Arc&lt;SignedTransaction&gt;, packed: bool, force: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TransactionPoolError&gt; {
         inner.insert_transaction_with_readiness_check(
-            account_cache,
+            state,
             transaction,
             packed,
             force,
@@ -2165,7 +2106,28 @@
         )
     }
 
-    <span class="doccomment">/// content retrieves the ready and deferred transactions.
+    <span class="kw">pub fn </span>eth_content(
+        <span class="kw-2">&amp;</span><span class="self">self</span>, space: <span class="prelude-ty">Option</span>&lt;Space&gt;,
+    ) -&gt; (
+        BTreeMap&lt;Address, BTreeMap&lt;U256, Arc&lt;SignedTransaction&gt;&gt;&gt;,
+        BTreeMap&lt;Address, BTreeMap&lt;U256, Arc&lt;SignedTransaction&gt;&gt;&gt;,
+    ) {
+        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read();
+        inner.eth_content(space)
+    }
+
+    <span class="kw">pub fn </span>eth_content_from(
+        <span class="kw-2">&amp;</span><span class="self">self</span>, from: Address,
+    ) -&gt; (
+        BTreeMap&lt;U256, Arc&lt;SignedTransaction&gt;&gt;,
+        BTreeMap&lt;U256, Arc&lt;SignedTransaction&gt;&gt;,
+    ) {
+        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read();
+        inner.eth_content_from(from)
+    }
+
+    <span class="doccomment">/// content retrieves the ready and deferred transactions(all pool
+    /// transactions). deprecated: use eth_content instead
     </span><span class="kw">pub fn </span>content(
         <span class="kw-2">&amp;</span><span class="self">self</span>, address: <span class="prelude-ty">Option</span>&lt;Address&gt;,
     ) -&gt; (Vec&lt;Arc&lt;SignedTransaction&gt;&gt;, Vec&lt;Arc&lt;SignedTransaction&gt;&gt;) {
@@ -2186,18 +2148,14 @@
             <span class="kw-2">*</span><span class="self">self</span>.config.half_block_gas_limit.write() = half_block_gas_limit;
         }
 
-        <span class="kw">let </span>account_cache = <span class="self">self</span>.get_best_state_account_cache();
+        <span class="kw">let </span>state = <span class="self">self</span>.get_best_state_provider();
         <span class="kw">let </span><span class="kw-2">mut </span>inner = <span class="self">self</span>.inner.write_with_metric(<span class="kw-2">&amp;</span>NOTIFY_BEST_INFO_LOCK);
         <span class="kw">let </span>inner = inner.deref_mut();
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>(tx) = set_tx_buffer.pop() {
             <span class="kw">let </span>tx_hash = tx.hash();
             <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.add_transaction_with_readiness_check(
-                inner,
-                <span class="kw-2">&amp;</span>account_cache,
-                tx,
-                <span class="bool-val">true</span>,
-                <span class="bool-val">false</span>,
+                inner, <span class="kw-2">&amp;</span>state, tx, <span class="bool-val">true</span>, <span class="bool-val">false</span>,
             ) {
                 <span class="comment">// TODO: A transaction that is packed multiple times would also
                 // throw an error here, but it should be normal.
@@ -2222,7 +2180,7 @@
                 <span class="string">"should not trigger recycle transaction, nonce = {}, sender = {:?}, \
                 account nonce = {}, hash = {:?} ."</span>,
                 <span class="kw-2">&amp;</span>tx.nonce(), <span class="kw-2">&amp;</span>tx.sender(),
-                account_cache.get_nonce(<span class="kw-2">&amp;</span>tx.sender())<span class="question-mark">?</span>, tx.hash);
+                state.get_nonce(<span class="kw-2">&amp;</span>tx.sender())<span class="question-mark">?</span>, tx.hash);
 
             <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.verify_transaction_tx_pool(
                 <span class="kw-2">&amp;</span>tx,
@@ -2238,11 +2196,7 @@
                 );
             }
             <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.add_transaction_with_readiness_check(
-                inner,
-                <span class="kw-2">&amp;</span>account_cache,
-                tx,
-                <span class="bool-val">false</span>,
-                <span class="bool-val">true</span>,
+                inner, <span class="kw-2">&amp;</span>state, tx, <span class="bool-val">false</span>, <span class="bool-val">true</span>,
             ) {
                 <span class="macro">warn!</span>(<span class="string">"recycle tx err: e={:?}"</span>, e);
             }
@@ -2451,9 +2405,9 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>get_best_state_account_cache(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; AccountCache {
+    <span class="kw">fn </span>get_best_state_provider(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StateProvider {
         <span class="kw">let </span>_timer = MeterTimer::time_func(TX_POOL_GET_STATE_TIMER.as_ref());
-        AccountCache::new((<span class="self">self</span>.best_executed_state.lock()).clone())
+        StateProvider::new((<span class="self">self</span>.best_executed_state.lock()).clone())
     }
 
     <span class="kw">pub fn </span>ready_for_mining(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {

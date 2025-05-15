@@ -1,6 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cfxcore/core/src/pos/consensus/liveness/proposal_generator.rs`."><title>proposal_generator.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="cfxcore" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0-nightly (b11fbfbf3 2024-02-03)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../../src-files.js"></script><script defer src="../../../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
-            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../../../cfxcore/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cfxcore/core/src/pos/consensus/liveness/proposal_generator.rs`."><title>proposal_generator.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="cfxcore" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0-nightly (fb898629a 2024-04-21)" data-channel="nightly" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../../src-files.js"></script><script defer src="../../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../../../cfxcore/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -311,17 +309,6 @@
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
@@ -343,10 +330,7 @@
 <span class="kw">use </span>diem_logger::{debug <span class="kw">as </span>diem_debug, error <span class="kw">as </span>diem_error};
 <span class="kw">use </span>diem_types::{
     transaction::{RawTransaction, SignedTransaction, TransactionPayload},
-    validator_config::{
-        ConsensusPrivateKey, ConsensusPublicKey, ConsensusVRFPrivateKey,
-        ConsensusVRFPublicKey,
-    },
+    validator_config::ConsensusPrivateKey,
     validator_verifier::ValidatorVerifier,
 };
 <span class="kw">use </span>pow_types::PowInterface;
@@ -388,9 +372,6 @@
     </span>pow_handler: Arc&lt;<span class="kw">dyn </span>PowInterface&gt;,
     <span class="comment">// TODO(lpl): Where to put them?
     </span><span class="kw">pub </span>private_key: ConsensusPrivateKey,
-    <span class="kw">pub </span>public_key: ConsensusPublicKey,
-    <span class="kw">pub </span>vrf_private_key: ConsensusVRFPrivateKey,
-    <span class="kw">pub </span>vrf_public_key: ConsensusVRFPublicKey,
 }
 
 <span class="kw">impl </span>ProposalGenerator {
@@ -398,9 +379,7 @@
         author: Author, block_store: Arc&lt;<span class="kw">dyn </span>BlockReader + Send + Sync&gt;,
         txn_manager: Arc&lt;<span class="kw">dyn </span>TxnManager&gt;, time_service: Arc&lt;<span class="kw">dyn </span>TimeService&gt;,
         max_block_size: u64, pow_handler: Arc&lt;<span class="kw">dyn </span>PowInterface&gt;,
-        private_key: ConsensusPrivateKey, public_key: ConsensusPublicKey,
-        vrf_private_key: ConsensusVRFPrivateKey,
-        vrf_public_key: ConsensusVRFPublicKey,
+        private_key: ConsensusPrivateKey,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             author,
@@ -411,9 +390,6 @@
             last_round_generated: Mutex::new(<span class="number">0</span>),
             pow_handler,
             private_key,
-            public_key,
-            vrf_private_key,
-            vrf_public_key,
         }
     }
 

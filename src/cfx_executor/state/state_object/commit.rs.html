@@ -1,6 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cfxcore/executor/src/state/state_object/commit.rs`."><title>commit.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="cfx_executor" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0-nightly (b11fbfbf3 2024-02-03)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
-            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../../cfx_executor/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/execution/executor/src/state/state_object/commit.rs`."><title>commit.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="cfx_executor" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0-nightly (fb898629a 2024-04-21)" data-channel="nightly" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../../cfx_executor/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -131,7 +129,24 @@
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::State;
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::state::overlay_account::AccountEntry;
+
+<span class="kw">use </span><span class="kw">super</span>::State;
 <span class="kw">use </span>cfx_internal_common::{
     debug::ComputeEpochDebugRecord, StateRootWithAuxInfo,
 };
@@ -170,7 +185,7 @@
     }
 
     <span class="doccomment">/// Apply changes for the accounts and global variables to the statedb.
-    </span><span class="kw">fn </span>apply_changes_to_statedb(
+    </span><span class="kw">pub fn </span>apply_changes_to_statedb(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>debug_record: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;mut </span>ComputeEpochDebugRecord&gt;,
     ) -&gt; DbResult&lt;Vec&lt;Account&gt;&gt; {
         <span class="macro">debug!</span>(<span class="string">"state.commit_changes"</span>);
@@ -186,7 +201,8 @@
     ) -&gt; DbResult&lt;Vec&lt;Account&gt;&gt; {
         <span class="macro">assert!</span>(<span class="self">self</span>.no_checkpoint());
 
-        <span class="kw">let </span>cache_items = <span class="self">self</span>.cache.get_mut().drain();
+        <span class="self">self</span>.commit_cache(<span class="bool-val">false</span>);
+        <span class="kw">let </span>cache_items = <span class="self">self</span>.committed_cache.drain();
         <span class="kw">let </span><span class="kw-2">mut </span>to_commit_accounts = cache_items
             .filter_map(|(<span class="kw">_</span>, acc)| acc.into_to_commit_account())
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
@@ -249,6 +265,18 @@
             )<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
+    }
+}
+
+<span class="kw">impl </span>State {
+    <span class="kw">pub fn </span>commit_cache(<span class="kw-2">&amp;mut </span><span class="self">self</span>, retain_transient_storage: bool) {
+        <span class="macro">assert!</span>(<span class="self">self</span>.no_checkpoint());
+        <span class="kw">for </span>(addr, <span class="kw-2">mut </span>account) <span class="kw">in </span><span class="self">self</span>.cache.get_mut().drain() {
+            <span class="kw">if let </span>AccountEntry::Cached(<span class="kw-2">ref mut </span>acc, dirty) = account.entry {
+                acc.commit_cache(retain_transient_storage, dirty);
+            }
+            <span class="self">self</span>.committed_cache.insert(addr, account.entry);
+        }
     }
 }
 
