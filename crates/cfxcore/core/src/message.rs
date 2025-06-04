@@ -122,7 +122,6 @@ pub trait Message:
 
         if !io.is_peer_self(node_id) {
             metric_message_v2(self.msg_id(), size);
-            metric_message(self.msg_id(), size);
         }
 
         Ok(())
