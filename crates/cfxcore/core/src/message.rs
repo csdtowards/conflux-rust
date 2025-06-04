@@ -11,7 +11,7 @@ pub use cfx_bytes::Bytes;
 pub use priority_send_queue::SendQueuePriority;
 use rlp::{Decodable, Rlp};
 
-use crate::sync::msg_sender::metric_message_v2;
+use crate::sync::msg_sender::{metric_message_v2, metric_message};
 use network::{
     node_table::NodeId, parse_msg_id_leb128_2_bytes_at_most,
     service::ProtocolVersion, ProtocolId,
