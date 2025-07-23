@@ -25,7 +25,7 @@ use threadpool::ThreadPool;
 use crate::keylib::KeyPair;
 use blockgen::BlockGenerator;
 use cfx_executor::machine::{Machine, VmFactory};
-use cfx_parameters::genesis::DEV_GENESIS_KEY_PAIR_2;
+use cfx_parameters::genesis::{DEV_GENESIS_KEY_PAIR, DEV_GENESIS_KEY_PAIR_2, GENESIS_ACCOUNT_ADDRESS};
 use cfx_storage::StorageManager;
 use cfx_types::{address_util::AddressUtil, Address, Space, U256};
 pub use cfxcore::pos::pos::PosDropHandle;
@@ -61,6 +61,7 @@ use tokio::runtime::Runtime as TokioRuntime;
 use txgen::{DirectTransactionGenerator, TransactionGenerator};
 
 pub use crate::configuration::Configuration;
+use cfx_vm_types::{contract_address, CreateContractAddress};
 use crate::{
     accounts::{account_provider, keys_path},
     configuration::parse_config_address_string,
@@ -291,12 +292,12 @@ pub fn initialize_common_modules(
         }
     } else {
         match conf.raw_conf.genesis_accounts {
-            Some(ref file) => genesis::load_file(file, |addr_str| {
-                parse_config_address_string(
-                    addr_str,
-                    network_config.get_network_type(),
-                )
-            })?,
+            Some(ref file) =>genesis::load_file(file, |addr_str| {
+                    parse_config_address_string(
+                        addr_str,
+                        network_config.get_network_type(),
+                    )
+                })?,
             None => genesis::default(conf.is_test_or_dev_mode()),
         }
     };
@@ -317,9 +318,11 @@ pub fn initialize_common_modules(
     let vm = VmFactory::new(1024 * 32);
     let machine = Arc::new(Machine::new_with_builtin(conf.common_params(), vm));
 
+    let mut genesis_block_accounts = genesis_accounts.clone();
+    genesis_block_accounts.extend(genesis::default(conf.is_test_or_dev_mode()));
     let genesis_block = genesis_block(
         &storage_manager,
-        genesis_accounts.clone(),
+        genesis_block_accounts,
         Address::from_str(GENESIS_VERSION).unwrap(),
         U256::zero(),
         machine.clone(),
@@ -608,7 +611,7 @@ pub fn initialize_not_light_node_modules(
         secret_store.clone(),
         genesis_accounts,
         &conf,
-        network.net_key_pair().unwrap(),
+        network.as_ref(),
     );
 
     let maybe_author: Option<Address> =
@@ -807,7 +810,7 @@ pub fn initialize_txgens(
     consensus: Arc<ConsensusGraph>, txpool: Arc<TransactionPool>,
     sync: Arc<SynchronizationService>, secret_store: SharedSecretStore,
     genesis_accounts: HashMap<Address, U256>, conf: &Configuration,
-    network_key_pair: KeyPair,
+    network: &NetworkService,
 ) -> (
     Option<Arc<TransactionGenerator>>,
     Option<Arc<Mutex<DirectTransactionGenerator>>>,
@@ -816,7 +819,7 @@ pub fn initialize_txgens(
     // transactions into blocks.
     let maybe_direct_txgen_with_contract = if conf.is_test_or_dev_mode() {
         Some(Arc::new(Mutex::new(DirectTransactionGenerator::new(
-            network_key_pair,
+            network.net_key_pair().unwrap(),
             &public_to_address(DEV_GENESIS_KEY_PAIR_2.public(), true),
             U256::from_dec_str("10000000000000000").unwrap(),
             U256::from_dec_str("10000000000000000").unwrap(),
@@ -838,6 +841,7 @@ pub fn initialize_txgens(
         ));
         if txgen_conf.generate_tx {
             let txgen_clone = multi_genesis_txgen.clone();
+            let erc20_address = conf.raw_conf.erc20_address.as_ref().map(|s| parse_config_address_string(s, network.get_network_type()).unwrap());
             let join_handle =
                 thread::Builder::new()
                     .name("txgen".into())
@@ -846,6 +850,7 @@ pub fn initialize_txgens(
                             txgen_clone,
                             txgen_conf,
                             genesis_accounts,
+                            erc20_address,
                         );
                     })
                     .expect("should succeed");

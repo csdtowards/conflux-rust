@@ -118,6 +118,7 @@ impl TransactionGenerator {
         txgen: Arc<TransactionGenerator>,
         tx_config: TransactionGeneratorConfig,
         _genesis_accounts: HashMap<Address, U256>,
+        erc20_address: Option<Address>,
     ) {
         loop {
             let account_start = txgen.account_start_index.read();
@@ -209,16 +210,34 @@ impl TransactionGenerator {
             // pool
             let mut tx_to_insert = Vec::new();
             for i in 0..tx_config.batch_size {
+                let (action, value, data, gas) = match &erc20_address {
+                    None => (Action::Call(receiver_address), balance_to_transfer, Bytes::new(), 21000.into()),
+                    Some(address) => {
+                        let action = Action::Call(*address);
+                        let data = (String::new()
+                            + "a9059cbb000000000000000000000000"
+                            + &receiver_address.0.to_hex::<String>()
+                            + {
+                            let h: H256 =
+                                BigEndianHash::from_uint(&balance_to_transfer);
+                            &h.0.to_hex::<String>()
+                        })
+                            .from_hex()
+                            .unwrap();
+                        trace!("action={:?} data={:?}", action, data);
+                        (action, 0.into(), data, 150000.into())
+                    }
+                };
                 let tx: Transaction = NativeTransaction {
                     nonce: sender_nonce + i,
                     gas_price: U256::from(1u64),
-                    gas: U256::from(21000u64),
-                    value: balance_to_transfer,
-                    action: Action::Call(receiver_address),
-                    storage_limit: 0,
+                    gas,
+                    value,
+                    action,
+                    storage_limit: 512,
                     chain_id: txgen.consensus.best_chain_id().in_native_space(),
                     epoch_height: txgen.consensus.best_epoch_number(),
-                    data: Bytes::new(),
+                    data,
                 }
                 .into();
                 let signed_tx = tx.sign(&address_secret_pair[&sender_address]);
