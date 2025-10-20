@@ -136,6 +136,7 @@ build_config! {
         (rocksdb_disable_wal, (bool), false)
         (txgen_account_count, (usize), 10)
         (txgen_batch_size, (usize), 1)
+        (add_data, (bool), false)
 
         // Genesis section.
         (adaptive_weight_beta, (u64), ADAPTIVE_WEIGHT_DEFAULT_BETA)
@@ -760,6 +761,7 @@ impl Configuration {
                 self.raw_conf.generate_tx_period_us.expect("has default"),
                 self.raw_conf.txgen_account_count,
                 self.raw_conf.txgen_batch_size,
+                self.raw_conf.add_data,
             ))
         } else {
             None

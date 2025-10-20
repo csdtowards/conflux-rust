@@ -53,18 +53,20 @@ pub struct TransactionGeneratorConfig {
     pub period: time::Duration,
     pub account_count: usize,
     pub batch_size: usize,
+    pub add_data: bool,
 }
 
 impl TransactionGeneratorConfig {
     pub fn new(
         generate_tx: bool, period_ms: u64, account_count: usize,
-        batch_size: usize,
+        batch_size: usize, add_data: bool,
     ) -> Self {
         TransactionGeneratorConfig {
             generate_tx,
             period: time::Duration::from_micros(period_ms),
             account_count,
             batch_size,
+            add_data,
         }
     }
 }
@@ -163,6 +165,16 @@ impl TransactionGenerator {
         // Generate more tx
 
         let account_count = address_secret_pair.len();
+
+        let data = if tx_config.add_data {
+            let mut val = vec![];
+            for _ in 0..500 {
+                val.push(random::<u8>());
+            }
+            Bytes::from(val)
+        } else {
+            Bytes::new()
+        };
         loop {
             match *txgen.state.read() {
                 TransGenState::Stop => return,
@@ -218,7 +230,7 @@ impl TransactionGenerator {
                     storage_limit: 0,
                     chain_id: txgen.consensus.best_chain_id().in_native_space(),
                     epoch_height: txgen.consensus.best_epoch_number(),
-                    data: Bytes::new(),
+                    data: data.clone(),
                 }
                 .into();
                 let signed_tx = tx.sign(&address_secret_pair[&sender_address]);
