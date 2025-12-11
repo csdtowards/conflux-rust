@@ -738,10 +738,17 @@ class ConnectThread(threading.Thread):
         try:
             while True:
                 for i in range(len(self.peers)):
-                    p = self.peers[i]
-                    connect_nodes(self.nodes, self.a, p)
+                    try:
+                        p = self.peers[i]
+                        connect_nodes(self.nodes, self.a, p, 10)
+                    except Exception as e:
+                        self.log.error("peer {}, error: {}".format(i, e))
                 for p in self.latencies[self.a]:
-                    self.nodes[self.a].test_addLatency(self.nodes[p].key, self.latencies[self.a][p])
+                    try:
+                        if self.latencies[self.a][p] > 0:
+                            self.nodes[self.a].test_addLatency(self.nodes[p].key, self.latencies[self.a][p])
+                    except Exception as e:
+                        self.log.error(e)
                 if len(self.nodes[self.a].test_getPeerInfo()) >= self.min_peers:
                     break
                 else:
